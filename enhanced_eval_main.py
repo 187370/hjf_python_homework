@@ -107,8 +107,8 @@ class EnhancedStrategyEvaluator:
             # 准备当前可用数据
             current_data = self.prepare_test_data(all_data, trading_dates[0], date)
               
-            # 每10个交易日进行一次LLM分析（控制API调用频率）
-            if i % 10 == 0:
+            # 每5个交易日进行一次LLM分析（控制API调用频率）
+            if i % 1 == 0:
                 try:
                     print(f"分析 {date.strftime('%Y-%m-%d')} 的市场情感...")
                     
@@ -219,7 +219,7 @@ class EnhancedStrategyEvaluator:
             self.daily_portfolio_details.append(daily_detail)
             
             # 每日投资组合报告（每10个交易日输出详细信息）
-            if i % 10 == 0 or i == len(trading_dates) - 1:
+            if i % 1 == 0 or i == len(trading_dates) - 1:
                 self._print_daily_portfolio_report(date, daily_detail, day_trades)
         
         # 计算最终结果
@@ -590,7 +590,7 @@ def main():
     # 生成交易日期
     start_date = datetime(2011, 1, 1)  # 根据数据集的实际时间范围调整
     end_date = datetime(2018, 1, 1)
-    trading_dates = evaluator.generate_trading_dates(start_date, 60, min_gap=50, max_gap=100)
+    trading_dates = evaluator.generate_trading_dates(start_date, 60, min_gap=30, max_gap=100)
     trading_dates = [d for d in trading_dates if d < end_date]
     
     print(f"生成 {len(trading_dates)} 个交易日期")

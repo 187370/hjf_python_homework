@@ -232,7 +232,7 @@ class LLMAnalyzer:
         
         # 公司背景信息（基于股票代码推断）
         company_info = self._get_company_context(stock_symbol)
-        
+
         # 构建增强分析提示
         prompt = f"""
 作为资深金融分析师，请深度分析股票 {stock_symbol} 的市场情感和投资前景。
