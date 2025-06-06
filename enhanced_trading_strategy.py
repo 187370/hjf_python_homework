@@ -359,11 +359,10 @@ class EnhancedTradingStrategy:
                 }
 
             except Exception as e:
-                self.logger.error(f"股票 {stock_symbol} 交易信号生成失败: {e}")
-
+                self.logger.error(f"股票 {stock_symbol} 交易信号生成失败: {e}")    
     def enhanced_make_decision(self, current_data, date, next_trading_date=None):
         """
-        增强版决策函数，结合LLM分析结果
+        增强版决策函数，以LLM分析为主导，结合技术分析
 
         Args:
             current_data: 当前可用的股票数据
@@ -374,76 +373,97 @@ class EnhancedTradingStrategy:
             交易决策列表
         """
         decisions = []
-
-        # 首先进行传统的技术分析
-        traditional_decisions = self.make_decision(current_data, date)
-
-        # 结合LLM信号进行增强
-        for decision in traditional_decisions:
-            stock_symbol = decision["action"]["symbol"]
-
+        
+        # 获取传统技术分析的决策信号，但不立即使用
+        traditional_decisions_map = {
+            decision["action"]["symbol"]: decision 
+            for decision in self.make_decision(current_data, date)
+        }
+        
+        # 基于LLM信号生成主导决策
+        for stock_symbol in self.stock_pool:
+            # 检查是否有当前股票的数据
+            if stock_symbol not in current_data or not current_data[stock_symbol]:
+                continue
+                
+            # 获取当前价格
+            latest_data = current_data[stock_symbol][-1]
+            price = latest_data[4]  # 收盘价
+            
             # 获取LLM信号
             llm_signal = self.llm_signals.get(stock_symbol, {})
+            if not llm_signal or "signal" not in llm_signal:
+                continue  # 如果没有LLM信号，跳过该股票
+                
+            # 获取情感数据
             sentiment_data = self.sentiment_history.get(stock_symbol, [])
-
-            # 调整决策
-            enhanced_decision = decision.copy()
-
-            if llm_signal and "signal" in llm_signal:
-                llm_action = llm_signal.get("signal", "持有")
-                llm_confidence = llm_signal.get("confidence", 0.5)
-                original_action = decision["action"]["type"]
-
-                # 信号冲突处理
-                if llm_action == "卖出" and original_action == "buy":
-                    # LLM建议卖出但技术分析建议买入，降低买入量
-                    if llm_confidence > 0.7:
-                        enhanced_decision["action"]["shares"] = int(
-                            decision["action"]["shares"] * 0.3
-                        )
-                        enhanced_decision[
-                            "reason"
-                        ] += f" [LLM警告: {llm_signal.get('reasoning', '')}]"
-                elif llm_action == "买入" and original_action == "buy":
-                    # 两者都建议买入，可能增加买入量
-                    if llm_confidence > 0.7:
-                        enhanced_decision["action"]["shares"] = int(
-                            decision["action"]["shares"] * 1.3
-                        )
-                        enhanced_decision[
-                            "reason"
-                        ] += f" [LLM确认: {llm_signal.get('reasoning', '')}]"
-                elif llm_action == "买入" and original_action == "sell":
-                    # LLM建议买入但技术分析建议卖出，减少卖出量
-                    if llm_confidence > 0.7:
-                        enhanced_decision["action"]["shares"] = int(
-                            decision["action"]["shares"] * 0.5
-                        )
-                        enhanced_decision[
-                            "reason"
-                        ] += f" [LLM反对: {llm_signal.get('reasoning', '')}]"
-
+            sentiment_info = sentiment_data[-1] if sentiment_data else {}
+            
+            # 基于LLM信号构建初始决策
+            llm_action = llm_signal.get("signal", "持有")
+            llm_confidence = llm_signal.get("confidence", 0.5)
+            llm_reasoning = llm_signal.get("reasoning", "")
+            
+            # 只处理买入或卖出信号，持有信号跳过
+            if llm_action == "持有":
+                continue
+                
+            # 计算基本交易量，基于LLM置信度
+            base_shares = int(1000 * llm_confidence * 2)  # 基础交易量随置信度增加
+            
+            decision = {
+                "action": {
+                    "type": "buy" if llm_action == "买入" else "sell",
+                    "symbol": stock_symbol,
+                    "shares": base_shares,
+                    "price": price,
+                },
+                "reason": f"LLM{llm_action}信号 (置信度={llm_confidence:.2f}): {llm_reasoning[:50]}...",
+                "confidence": llm_confidence,
+            }
+            
+            # 结合技术分析进行调整
+            if stock_symbol in traditional_decisions_map:
+                tech_decision = traditional_decisions_map[stock_symbol]
+                tech_action = tech_decision["action"]["type"]
+                tech_shares = tech_decision["action"]["shares"]
+                tech_reason = tech_decision["reason"]
+                
+                # 信号一致性调整
+                if (tech_action == "buy" and llm_action == "买入") or (tech_action == "sell" and llm_action == "卖出"):
+                    # 技术分析与LLM信号一致，增强决策
+                    decision["action"]["shares"] = int(decision["action"]["shares"] * 1.5)
+                    decision["reason"] += f" [技术分析确认: {tech_reason}]"
+                    decision["confidence"] = min(0.95, decision["confidence"] + 0.1)
+                elif (tech_action == "buy" and llm_action == "卖出") or (tech_action == "sell" and llm_action == "买入"):
+                    # 技术分析与LLM信号冲突，减弱决策但仍以LLM为主
+                    decision["action"]["shares"] = int(decision["action"]["shares"] * 0.7)
+                    decision["reason"] += f" [技术分析冲突: {tech_reason}]"
+                    decision["confidence"] = max(0.2, decision["confidence"] - 0.1)
+            
             # 情感调整
             if sentiment_data:
                 latest_sentiment = sentiment_data[-1]
-                sentiment_score = latest_sentiment["sentiment_score"]
-                risk_level = latest_sentiment["risk_level"]
-
-                # 根据情感调整交易量
-                if risk_level == "高" and enhanced_decision["action"]["type"] == "buy":
-                    enhanced_decision["action"]["shares"] = int(
-                        enhanced_decision["action"]["shares"] * 0.7
-                    )
-                    enhanced_decision["reason"] += f" [高风险调整]"
-                elif (
-                    risk_level == "低" and enhanced_decision["action"]["type"] == "buy"
-                ):
-                    enhanced_decision["action"]["shares"] = int(
-                        enhanced_decision["action"]["shares"] * 1.1
-                    )
-                    enhanced_decision["reason"] += f" [低风险增持]"
-                decisions.append(enhanced_decision)
-
+                sentiment_score = latest_sentiment.get("sentiment_score", 0.5)
+                risk_level = latest_sentiment.get("risk_level", "中")
+                
+                # 根据风险等级和情感评分调整交易量
+                if risk_level == "高" and decision["action"]["type"] == "buy":
+                    decision["action"]["shares"] = int(decision["action"]["shares"] * 0.5)
+                    decision["reason"] += f" [高风险调整]"
+                elif risk_level == "低" and decision["action"]["type"] == "buy":
+                    decision["action"]["shares"] = int(decision["action"]["shares"] * 1.3)
+                    decision["reason"] += f" [低风险增持]"
+                
+                # 通过情感分数进一步微调
+                sentiment_factor = sentiment_score if decision["action"]["type"] == "buy" else (1 - sentiment_score)
+                decision["action"]["shares"] = int(decision["action"]["shares"] * (0.7 + sentiment_factor * 0.6))
+            
+            # 确保交易量在合理范围内
+            decision["action"]["shares"] = max(50, min(decision["action"]["shares"], 3000))
+            
+            decisions.append(decision)
+        
         return decisions
 
     def make_decision(self, current_data, date):
@@ -773,13 +793,20 @@ class EnhancedTradingStrategy:
                 and self.sentiment_history[stock_symbol]
             ):
                 market_sentiment = self.sentiment_history[stock_symbol][-1]
+                # 确保传递详细分析理由和关键因素
+                if "reasoning" not in market_sentiment:
+                    market_sentiment["reasoning"] = ""
+                if "key_factors" not in market_sentiment:
+                    market_sentiment["key_factors"] = []
+               
             else:
                 market_sentiment = {
                     "sentiment_score": 0.5,
                     "confidence": 0.5,
                     "risk_level": "中",
+                    "reasoning": "",
+                    "key_factors": [],
                 }
-
             analysis_tasks.append(
                 {
                     "task_type": "trading_signal",
