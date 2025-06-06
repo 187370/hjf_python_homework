@@ -198,6 +198,7 @@ class LLMAnalyzer:
                         task["technical_indicators"],
                         task["market_sentiment"],
                         task.get("holding_info"),
+                        task.get("latest_price"),
                         client_index,
                     )
 
@@ -344,6 +345,7 @@ class LLMAnalyzer:
         technical_indicators: Dict[str, float],
         market_sentiment: Dict[str, Any],
         holding_info: Optional[Dict[str, Any]] = None,
+        latest_price: Optional[float] = None,
         client_index: int = 0,
     ) -> Dict[str, Any]:
         """
@@ -364,9 +366,11 @@ class LLMAnalyzer:
                 f"当前持仓 {shares} 股, 价值约 ${value:.2f}, 占组合 {weight_pct:.2%}; 当前现金 ${cash:.2f}\n"
             )
 
+        price_text = f"当前股价: ${latest_price:.2f}\n" if latest_price is not None else ""
+
         prompt = f"""
 作为量化交易分析师，请为股票 {stock_symbol} 生成交易信号：
-{holding_text}
+{holding_text}{price_text}
 
 技术指标：
 - RSI: {technical_indicators.get('rsi', 50):.2f}
@@ -396,6 +400,7 @@ class LLMAnalyzer:
     "stop_loss": 0.95,
     "take_profit": 1.10,
     "holding_period": 10,
+    "trade_shares": 100,
     "reasoning": "详细理由"
 }}
 """
@@ -422,6 +427,7 @@ class LLMAnalyzer:
                 "stop_loss": 0.95,
                 "take_profit": 1.05,
                 "holding_period": 5,
+                "trade_shares": 0,
                 "reasoning": response,
             }
 
@@ -599,6 +605,7 @@ class LLMAnalyzer:
         technical_indicators: Dict[str, float],
         market_sentiment: Dict[str, Any],
         holding_info: Optional[Dict[str, Any]] = None,
+        latest_price: Optional[float] = None,
     ) -> Dict[str, Any]:
         """
         基于技术指标和市场情感生成交易信号
@@ -623,7 +630,7 @@ class LLMAnalyzer:
 
         prompt = f"""
 作为量化交易专家，请为股票 {stock_symbol} 生成交易信号。
-{holding_text}
+{holding_text}{price_text}
 
 技术指标：
 """
@@ -647,6 +654,7 @@ class LLMAnalyzer:
     "stop_loss": 0.95,
     "take_profit": 1.10,
     "holding_period": 10,
+    "trade_shares": 100,
     "reasoning": "详细理由"
 }}
 """
@@ -671,6 +679,7 @@ class LLMAnalyzer:
                 "stop_loss": 0.95,
                 "take_profit": 1.05,
                 "holding_period": 5,
+                "trade_shares": 0,
                 "reasoning": response,
             }
 
