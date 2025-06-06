@@ -131,8 +131,21 @@ class EnhancedStrategyEvaluator:
                 except Exception as e:
                     print(f"LLM分析失败: {e}")
             
+            # 计算当前投资组合价值供决策参考
+            portfolio_value_before = cash
+            for sym, qty in positions.items():
+                if sym in current_data and current_data[sym]:
+                    portfolio_value_before += qty * current_data[sym][-1][4]
+
+            portfolio_state = {"cash": cash, "positions": dict(positions)}
+
             # 使用增强决策
-            decisions = strategy.enhanced_make_decision(current_data, date)
+            decisions = strategy.enhanced_make_decision(
+                current_data,
+                date,
+                portfolio=portfolio_state,
+                total_portfolio_value=portfolio_value_before,
+            )
             
             # 执行交易决策
             day_trades = []  # 当日交易记录

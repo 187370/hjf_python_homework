@@ -26,7 +26,13 @@ class EnhancedTradingStrategy:
     """
 
     def __init__(
-        self, stock_pool, llm_api_keys, llm_base_url="http://10.129.80.218:3000/v1"
+        self,
+        stock_pool,
+        llm_api_keys,
+        llm_base_url="http://10.129.80.218:3000/v1",
+        risk_per_trade_cash_pct=0.1,
+        max_position_pct_portfolio=0.2,
+        min_trade_value=1000,
     ):
         """
         初始化增强版交易策略
@@ -56,6 +62,11 @@ class EnhancedTradingStrategy:
         self.sentiment_history = {}  # 情感分析历史
         self.llm_signals = {}  # LLM生成的交易信号
         self.risk_assessments = {}  # 风险评估结果
+
+        # 交易风险参数
+        self.risk_per_trade_cash_pct = risk_per_trade_cash_pct
+        self.max_position_pct_portfolio = max_position_pct_portfolio
+        self.min_trade_value = min_trade_value
 
         # 设置日志
         logging.basicConfig(level=logging.INFO)
@@ -178,6 +189,32 @@ class EnhancedTradingStrategy:
             df["cluster"] = 0
 
         return df
+
+    def _calculate_dynamic_shares(self, symbol, price, action, portfolio, total_value):
+        """根据资金和仓位动态计算交易股数"""
+        if portfolio is None:
+            return 0
+
+        cash = portfolio.get("cash", 0)
+        positions = portfolio.get("positions", {})
+
+        current_shares = positions.get(symbol, 0)
+        current_value = current_shares * price
+        max_position_value = total_value * self.max_position_pct_portfolio
+
+        if action == "buy":
+            trade_cash = cash * self.risk_per_trade_cash_pct
+            trade_cash = min(trade_cash, max(0, max_position_value - current_value))
+            shares = int(trade_cash / price)
+        else:
+            trade_value = current_value * self.risk_per_trade_cash_pct
+            shares = int(trade_value / price)
+            shares = min(shares, current_shares)
+
+        if shares * price < self.min_trade_value:
+            return 0
+
+        return max(shares, 0)
 
     def build_stock_relationship_network(self, all_data):
         """
@@ -360,7 +397,14 @@ class EnhancedTradingStrategy:
 
             except Exception as e:
                 self.logger.error(f"股票 {stock_symbol} 交易信号生成失败: {e}")    
-    def enhanced_make_decision(self, current_data, date, next_trading_date=None):
+    def enhanced_make_decision(
+        self,
+        current_data,
+        date,
+        portfolio=None,
+        total_portfolio_value=None,
+        next_trading_date=None,
+    ):
         """
         增强版决策函数，以LLM分析为主导，结合技术分析
 
@@ -376,8 +420,8 @@ class EnhancedTradingStrategy:
         
         # 获取传统技术分析的决策信号，但不立即使用
         traditional_decisions_map = {
-            decision["action"]["symbol"]: decision 
-            for decision in self.make_decision(current_data, date)
+            decision["action"]["symbol"]: decision
+            for decision in self.make_decision(current_data, date, portfolio, total_portfolio_value)
         }
         
         # 基于LLM信号生成主导决策
@@ -408,8 +452,16 @@ class EnhancedTradingStrategy:
             if llm_action == "持有":
                 continue
                 
-            # 计算基本交易量，基于LLM置信度
-            base_shares = int(1000 * llm_confidence * 2)  # 基础交易量随置信度增加
+            # 动态计算基础交易量
+            base_shares = self._calculate_dynamic_shares(
+                stock_symbol,
+                price,
+                "buy" if llm_action == "买入" else "sell",
+                portfolio,
+                total_portfolio_value if total_portfolio_value is not None else 0,
+            )
+            if base_shares <= 0:
+                continue
             
             decision = {
                 "action": {
@@ -466,7 +518,7 @@ class EnhancedTradingStrategy:
         
         return decisions
 
-    def make_decision(self, current_data, date):
+    def make_decision(self, current_data, date, portfolio=None, total_portfolio_value=None):
         """基于技术分析的决策函数（参考原始策略逻辑）"""
         decisions = []
 
@@ -495,59 +547,105 @@ class EnhancedTradingStrategy:
 
             # 根据信号强度生成决策
             if signal > 2:  # 强买信号
-                decisions.append(
-                    {
-                        "action": {
-                            "type": "buy",
-                            "symbol": stock_symbol,
-                            "shares": min(
-                                2000, int(signal * 400)
-                            ),  # 根据信号强度调整数量
-                            "price": price,
-                        },
-                        "reason": f"强买入信号 (信号强度={signal:.2f})",
-                        "confidence": min(0.9, 0.5 + signal * 0.1),
-                    }
+                shares = min(
+                    self._calculate_dynamic_shares(
+                        stock_symbol,
+                        price,
+                        "buy",
+                        portfolio,
+                        total_portfolio_value if total_portfolio_value is not None else 0,
+                    ),
+                    2000,
+                    int(signal * 400),
                 )
+                if shares > 0:
+                    decisions.append(
+                        {
+                            "action": {
+                                "type": "buy",
+                                "symbol": stock_symbol,
+                                "shares": shares,
+                                "price": price,
+                            },
+                            "reason": f"强买入信号 (信号强度={signal:.2f})",
+                            "confidence": min(0.9, 0.5 + signal * 0.1),
+                        }
+                    )
             elif signal > 0.5:  # 弱买信号
-                decisions.append(
-                    {
-                        "action": {
-                            "type": "buy",
-                            "symbol": stock_symbol,
-                            "shares": min(1000, int(signal * 500)),
-                            "price": price,
-                        },
-                        "reason": f"买入信号 (信号强度={signal:.2f})",
-                        "confidence": 0.5 + signal * 0.1,
-                    }
+                shares = min(
+                    self._calculate_dynamic_shares(
+                        stock_symbol,
+                        price,
+                        "buy",
+                        portfolio,
+                        total_portfolio_value if total_portfolio_value is not None else 0,
+                    ),
+                    1000,
+                    int(signal * 500),
                 )
+                if shares > 0:
+                    decisions.append(
+                        {
+                            "action": {
+                                "type": "buy",
+                                "symbol": stock_symbol,
+                                "shares": shares,
+                                "price": price,
+                            },
+                            "reason": f"买入信号 (信号强度={signal:.2f})",
+                            "confidence": 0.5 + signal * 0.1,
+                        }
+                    )
             elif signal < -2:  # 强卖信号
-                decisions.append(
-                    {
-                        "action": {
-                            "type": "sell",
-                            "symbol": stock_symbol,
-                            "shares": min(2000, int(abs(signal) * 400)),
-                            "price": price,
-                        },
-                        "reason": f"强卖出信号 (信号强度={signal:.2f})",
-                        "confidence": min(0.9, 0.5 + abs(signal) * 0.1),
-                    }
+                shares = min(
+                    self._calculate_dynamic_shares(
+                        stock_symbol,
+                        price,
+                        "sell",
+                        portfolio,
+                        total_portfolio_value if total_portfolio_value is not None else 0,
+                    ),
+                    2000,
+                    int(abs(signal) * 400),
                 )
+                if shares > 0:
+                    decisions.append(
+                        {
+                            "action": {
+                                "type": "sell",
+                                "symbol": stock_symbol,
+                                "shares": shares,
+                                "price": price,
+                            },
+                            "reason": f"强卖出信号 (信号强度={signal:.2f})",
+                            "confidence": min(0.9, 0.5 + abs(signal) * 0.1),
+                        }
+                    )
             elif signal < -0.5:  # 弱卖信号
-                decisions.append(
-                    {
-                        "action": {
-                            "type": "sell",
-                            "symbol": stock_symbol,
-                            "shares": min(1000, int(abs(signal) * 500)),
-                            "price": price,
-                        },
-                        "reason": f"卖出信号 (信号强度={signal:.2f})",
-                        "confidence": 0.5 + abs(signal) * 0.1,
-                    }
+                shares = min(
+                    self._calculate_dynamic_shares(
+                        stock_symbol,
+                        price,
+                        "sell",
+                        portfolio,
+                        total_portfolio_value if total_portfolio_value is not None else 0,
+                    ),
+                    1000,
+                    int(abs(signal) * 500),
                 )
+                if shares > 0:
+                    decisions.append(
+                        {
+                            "action": {
+                                "type": "sell",
+                                "symbol": stock_symbol,
+                                "shares": shares,
+                                "price": price,
+                            },
+                            "reason": f"卖出信号 (信号强度={signal:.2f})",
+                            "confidence": 0.5 + abs(signal) * 0.1,
+                        }
+                    )
 
         return decisions
 
