@@ -278,6 +278,8 @@ class EnhancedTradingStrategy:
         Args:
             all_data: 所有股票的历史数据
             current_date: 当前日期
+            portfolio_state: 当前投资组合状态
+            total_portfolio_value: 投资组合总价值
         """
         self.logger.info(f"分析 {current_date} 的市场情感...")
 
@@ -325,7 +327,13 @@ class EnhancedTradingStrategy:
             except Exception as e:
                 self.logger.error(f"股票 {stock_symbol} 情感分析失败: {e}")
 
-    def generate_llm_trading_signals(self, all_data, current_date):
+    def generate_llm_trading_signals(
+        self,
+        all_data,
+        current_date,
+        portfolio_state=None,
+        total_portfolio_value=None,
+    ):
         """
         基于LLM生成交易信号
 
@@ -381,10 +389,26 @@ class EnhancedTradingStrategy:
                     "risk_level": latest_sentiment["risk_level"],
                 }
 
+            holding_info = None
+            if portfolio_state is not None and total_portfolio_value:
+                shares = portfolio_state.get("positions", {}).get(stock_symbol, 0)
+                price = latest_data.get("Close", 0)
+                value = shares * price
+                weight_pct = value / total_portfolio_value if total_portfolio_value > 0 else 0
+                holding_info = {
+                    "shares": shares,
+                    "value": value,
+                    "weight_pct": weight_pct,
+                    "cash": portfolio_state.get("cash", 0),
+                }
+
             try:
                 # 生成交易信号
                 trading_signal = self.llm_analyzer.generate_trading_signals(
-                    stock_symbol, technical_indicators, market_sentiment
+                    stock_symbol,
+                    technical_indicators,
+                    market_sentiment,
+                    holding_info,
                 )
 
                 self.llm_signals[stock_symbol] = {
@@ -838,13 +862,21 @@ class EnhancedTradingStrategy:
                     f"{stock_symbol} 情感分析完成: 评分={sentiment_data.get('sentiment_score', 0.5):.3f}"
                 )
 
-    def generate_llm_trading_signals_parallel(self, all_data, current_date):
+    def generate_llm_trading_signals_parallel(
+        self,
+        all_data,
+        current_date,
+        portfolio_state=None,
+        total_portfolio_value=None,
+    ):
         """
         并行生成所有股票的LLM交易信号
 
         Args:
             all_data: 所有股票的历史数据
             current_date: 当前日期
+            portfolio_state: 当前投资组合状态
+            total_portfolio_value: 投资组合总价值
         """
         self.logger.info(f"并行生成 {current_date} 的LLM交易信号...")
 
@@ -905,12 +937,26 @@ class EnhancedTradingStrategy:
                     "reasoning": "",
                     "key_factors": [],
                 }
+            holding_info = None
+            if portfolio_state is not None and total_portfolio_value:
+                shares = portfolio_state.get("positions", {}).get(stock_symbol, 0)
+                price = latest_data.get("Close", 0)
+                value = shares * price
+                weight_pct = value / total_portfolio_value if total_portfolio_value > 0 else 0
+                holding_info = {
+                    "shares": shares,
+                    "value": value,
+                    "weight_pct": weight_pct,
+                    "cash": portfolio_state.get("cash", 0),
+                }
+
             analysis_tasks.append(
                 {
                     "task_type": "trading_signal",
                     "stock_symbol": stock_symbol,
                     "technical_indicators": technical_indicators,
                     "market_sentiment": market_sentiment,
+                    "holding_info": holding_info,
                 }
             )
 

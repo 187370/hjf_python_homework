@@ -106,6 +106,14 @@ class EnhancedStrategyEvaluator:
         for i, date in enumerate(tqdm(trading_dates, desc="增强策略回测进度")):
             # 准备当前可用数据
             current_data = self.prepare_test_data(all_data, trading_dates[0], date)
+
+            # 计算当前投资组合价值供LLM参考
+            portfolio_value_before = cash
+            for sym, qty in positions.items():
+                if sym in current_data and current_data[sym]:
+                    portfolio_value_before += qty * current_data[sym][-1][4]
+
+            portfolio_state = {"cash": cash, "positions": dict(positions)}
               
             # 每5个交易日进行一次LLM分析（控制API调用频率）
             if i % 1 == 0:
@@ -115,11 +123,21 @@ class EnhancedStrategyEvaluator:
                     if self.enable_parallel:
                         # 使用并行处理
                         strategy.analyze_market_sentiment_for_all_stocks_parallel(all_data, date)
-                        strategy.generate_llm_trading_signals_parallel(all_data, date)
+                        strategy.generate_llm_trading_signals_parallel(
+                            all_data,
+                            date,
+                            portfolio_state=portfolio_state,
+                            total_portfolio_value=portfolio_value_before,
+                        )
                     else:
                         # 使用原有的串行处理
                         strategy.analyze_market_sentiment_for_all_stocks(all_data, date)
-                        strategy.generate_llm_trading_signals(all_data, date)
+                        strategy.generate_llm_trading_signals(
+                            all_data,
+                            date,
+                            portfolio_state=portfolio_state,
+                            total_portfolio_value=portfolio_value_before,
+                        )
                     
                     # 记录LLM分析
                     analysis_summary = strategy.get_analysis_summary()

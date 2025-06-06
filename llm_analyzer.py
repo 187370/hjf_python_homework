@@ -197,6 +197,7 @@ class LLMAnalyzer:
                         task["stock_symbol"],
                         task["technical_indicators"],
                         task["market_sentiment"],
+                        task.get("holding_info"),
                         client_index,
                     )
 
@@ -342,6 +343,7 @@ class LLMAnalyzer:
         stock_symbol: str,
         technical_indicators: Dict[str, float],
         market_sentiment: Dict[str, Any],
+        holding_info: Optional[Dict[str, Any]] = None,
         client_index: int = 0,
     ) -> Dict[str, Any]:
         """
@@ -352,8 +354,19 @@ class LLMAnalyzer:
         key_factors = market_sentiment.get("key_factors", [])
         key_factors_text = ", ".join(key_factors) if key_factors else "无明确关键因素"
 
+        holding_text = ""
+        if holding_info:
+            shares = holding_info.get("shares", 0)
+            value = holding_info.get("value", 0.0)
+            weight_pct = holding_info.get("weight_pct", 0.0)
+            cash = holding_info.get("cash", 0.0)
+            holding_text = (
+                f"当前持仓 {shares} 股, 价值约 ${value:.2f}, 占组合 {weight_pct:.2%}; 当前现金 ${cash:.2f}\n"
+            )
+
         prompt = f"""
 作为量化交易分析师，请为股票 {stock_symbol} 生成交易信号：
+{holding_text}
 
 技术指标：
 - RSI: {technical_indicators.get('rsi', 50):.2f}
@@ -585,6 +598,7 @@ class LLMAnalyzer:
         stock_symbol: str,
         technical_indicators: Dict[str, float],
         market_sentiment: Dict[str, Any],
+        holding_info: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         基于技术指标和市场情感生成交易信号
@@ -597,8 +611,19 @@ class LLMAnalyzer:
         Returns:
             交易信号建议
         """
+        holding_text = ""
+        if holding_info:
+            shares = holding_info.get("shares", 0)
+            value = holding_info.get("value", 0.0)
+            weight_pct = holding_info.get("weight_pct", 0.0)
+            cash = holding_info.get("cash", 0.0)
+            holding_text = (
+                f"当前持仓 {shares} 股, 价值约 ${value:.2f}, 占组合 {weight_pct:.2%}; 当前现金 ${cash:.2f}\n"
+            )
+
         prompt = f"""
 作为量化交易专家，请为股票 {stock_symbol} 生成交易信号。
+{holding_text}
 
 技术指标：
 """
