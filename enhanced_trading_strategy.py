@@ -409,6 +409,7 @@ class EnhancedTradingStrategy:
                     technical_indicators,
                     market_sentiment,
                     holding_info,
+                    latest_price=latest_data.get("Close", 0),
                 )
 
                 self.llm_signals[stock_symbol] = {
@@ -476,14 +477,17 @@ class EnhancedTradingStrategy:
             if llm_action == "持有":
                 continue
                 
-            # 动态计算基础交易量
-            base_shares = self._calculate_dynamic_shares(
-                stock_symbol,
-                price,
-                "buy" if llm_action == "买入" else "sell",
-                portfolio,
-                total_portfolio_value if total_portfolio_value is not None else 0,
-            )
+            # 动态计算基础交易量，优先使用LLM给出的建议
+            if "trade_shares" in llm_signal and llm_signal["trade_shares"] is not None:
+                base_shares = int(llm_signal["trade_shares"])
+            else:
+                base_shares = self._calculate_dynamic_shares(
+                    stock_symbol,
+                    price,
+                    "buy" if llm_action == "买入" else "sell",
+                    portfolio,
+                    total_portfolio_value if total_portfolio_value is not None else 0,
+                )
             if base_shares <= 0:
                 continue
             
@@ -957,6 +961,7 @@ class EnhancedTradingStrategy:
                     "technical_indicators": technical_indicators,
                     "market_sentiment": market_sentiment,
                     "holding_info": holding_info,
+                    "latest_price": latest_data.get("Close", 0),
                 }
             )
 
