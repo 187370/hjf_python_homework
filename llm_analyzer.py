@@ -57,7 +57,7 @@ class LLMAnalyzer:
         self._lock = threading.Lock()
         self._current_key_index = 0
 
-        # 设置日志
+     
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
 
@@ -104,7 +104,7 @@ class LLMAnalyzer:
         self, messages: List[Dict], temperature: float = 0.7, max_tokens: int = 1000
     ) -> str:
         """
-        向大语言模型发送请求
+        向大语言模型发送请求（串行版本，也废弃了）
 
         Args:
             messages: 消息列表
@@ -204,7 +204,7 @@ class LLMAnalyzer:
 
                 future_to_task[future] = task
 
-            # 收集结果
+    
             for future in as_completed(future_to_task):
                 task = future_to_task[future]
                 try:
@@ -243,7 +243,7 @@ class LLMAnalyzer:
         client_index: int = 0,
     ) -> Dict[str, Any]:
         """
-        单个股票情感分析（并行版本）- 增强版包含30天历史数据
+        单个股票情感分析（并行版本）
         """
         if recent_data.empty:
             return {
@@ -268,17 +268,17 @@ class LLMAnalyzer:
             else 1
         )
 
-        # 增强数据：30天历史价格变化趋势
+        # 30天历史价格变化趋势
         price_history = []
         if len(recent_data) >= 30:
-            for i in range(-30, 0, 5):  # 每5天采样一次
+            for i in range(-30, 0, 1):  # 每5天采样一次
                 idx = max(0, len(recent_data) + i)
                 if idx < len(recent_data):
                     price_history.append(
                         f"{recent_data.iloc[idx]['Date'].strftime('%m-%d')}: ${recent_data.iloc[idx]['Close']:.2f}"
                     )
 
-        # 公司背景信息（基于股票代码推断）
+        # 公司背景信息
         company_info = self._get_company_context(stock_symbol)
 
         search_summaries = []
@@ -298,7 +298,7 @@ class LLMAnalyzer:
                         search_summaries.append(summary.strip())
             except Exception as e:
                 self.logger.warning(f"搜索信息获取失败 {stock_symbol}: {e}")
-        # 构建增强分析提示
+   
         prompt = f"""
 今天是 {current_date or '未知日期'}，请结合该日期前的市场信息分析股票 {stock_symbol} 的情绪和前景。
 
@@ -554,12 +554,12 @@ class LLMAnalyzer:
 
         response = self._make_request(messages, temperature=0.3)
         try:
-            # 尝试解析JSON响应，先清理可能的代码块标记
+           
             cleaned_response = self._clean_json_response(response)
             result = json.loads(cleaned_response)
             return result
         except json.JSONDecodeError:
-            # 如果JSON解析失败，返回默认值
+           
             self.logger.warning(f"无法解析LLM响应为JSON: {response}")
             return {
                 "sentiment_score": 0.5,
@@ -582,12 +582,12 @@ class LLMAnalyzer:
         Returns:
             关系分析结果，包含行业聚类和有向依赖关系
         """
-        # 找出高相关性的股票对
+   
         high_corr_pairs = []
         for i in range(len(correlation_matrix.columns)):
             for j in range(i + 1, len(correlation_matrix.columns)):
                 corr_value = correlation_matrix.iloc[i, j]
-                if abs(corr_value) > 0.7:  # 高相关性阈值
+                if abs(corr_value) > 0.7:  
                     high_corr_pairs.append(
                         {
                             "stock1": correlation_matrix.columns[i],
@@ -661,7 +661,7 @@ class LLMAnalyzer:
         latest_price: Optional[float] = None,
     ) -> Dict[str, Any]:
         """
-        基于技术指标和市场情感生成交易信号
+        基于技术指标和市场情感生成交易信号（串行版本，已废弃）
 
         Args:
             stock_symbol: 股票代码
@@ -736,83 +736,83 @@ class LLMAnalyzer:
                 "reasoning": response,
             }
 
-    def analyze_risk_factors(
-        self, portfolio_data: Dict[str, pd.DataFrame], market_data: pd.DataFrame
-    ) -> Dict[str, Any]:
-        """
-        分析投资组合的风险因素
+#     def analyze_risk_factors(
+#         self, portfolio_data: Dict[str, pd.DataFrame], market_data: pd.DataFrame
+#     ) -> Dict[str, Any]:
+#         """
+#         分析投资组合的风险因素
 
-        Args:
-            portfolio_data: 投资组合中各股票的历史数据
-            market_data: 市场整体数据
+#         Args:
+#             portfolio_data: 投资组合中各股票的历史数据
+#             market_data: 市场整体数据
 
-        Returns:
-            风险分析结果
-        """
-        # 计算投资组合的基本风险指标
-        portfolio_returns = []
-        for symbol, data in portfolio_data.items():
-            if len(data) > 1:
-                returns = data["Close"].pct_change().dropna()
-                portfolio_returns.append(returns)
+#         Returns:
+#             风险分析结果
+#         """
+#         # 计算投资组合的基本风险指标
+#         portfolio_returns = []
+#         for symbol, data in portfolio_data.items():
+#             if len(data) > 1:
+#                 returns = data["Close"].pct_change().dropna()
+#                 portfolio_returns.append(returns)
 
-        if portfolio_returns:
-            portfolio_returns = pd.concat(portfolio_returns, axis=1)
-            portfolio_vol = portfolio_returns.std().mean()
-            portfolio_correlation = portfolio_returns.corr().mean().mean()
-        else:
-            portfolio_vol = 0
-            portfolio_correlation = 0
+#         if portfolio_returns:
+#             portfolio_returns = pd.concat(portfolio_returns, axis=1)
+#             portfolio_vol = portfolio_returns.std().mean()
+#             portfolio_correlation = portfolio_returns.corr().mean().mean()
+#         else:
+#             portfolio_vol = 0
+#             portfolio_correlation = 0
 
-        prompt = f"""
-作为风险管理专家，请分析当前投资组合的风险状况：
+#         prompt = f"""
+# 作为风险管理专家，请分析当前投资组合的风险状况：
 
-投资组合统计：
-- 股票数量: {len(portfolio_data)}
-- 平均波动率: {portfolio_vol:.4f}
-- 平均相关性: {portfolio_correlation:.4f}
+# 投资组合统计：
+# - 股票数量: {len(portfolio_data)}
+# - 平均波动率: {portfolio_vol:.4f}
+# - 平均相关性: {portfolio_correlation:.4f}
 
-请评估：
-1. 系统性风险水平
-2. 非系统性风险
-3. 流动性风险
-4. 集中度风险
-5. 风险管理建议
+# 请评估：
+# 1. 系统性风险水平
+# 2. 非系统性风险
+# 3. 流动性风险
+# 4. 集中度风险
+# 5. 风险管理建议
 
-回复格式：
-{
-    "systematic_risk": "低/中/高",
-    "idiosyncratic_risk": "低/中/高", 
-    "liquidity_risk": "低/中/高",
-    "concentration_risk": "低/中/高",
-    "overall_risk_score": 0.6,
-    "risk_recommendations": ["建议1", "建议2"],
-    "stress_test_scenarios": ["场景1", "场景2"]
-}
-"""
-        messages = [
-            {
-                "role": "system",
-                "content": "你是一位专业的投资风险管理专家，擅长投资组合风险评估。",
-            },
-            {"role": "user", "content": prompt},
-        ]
+# 回复格式：
+# {
+#     "systematic_risk": "低/中/高",
+#     "idiosyncratic_risk": "低/中/高", 
+#     "liquidity_risk": "低/中/高",
+#     "concentration_risk": "低/中/高",
+#     "overall_risk_score": 0.6,
+#     "risk_recommendations": ["建议1", "建议2"],
+#     "stress_test_scenarios": ["场景1", "场景2"]
+# }
+# """
+#         messages = [
+#             {
+#                 "role": "system",
+#                 "content": "你是一位专业的投资风险管理专家，擅长投资组合风险评估。",
+#             },
+#             {"role": "user", "content": prompt},
+#         ]
 
-        response = self._make_request(messages, temperature=0.3)
-        try:
-            result = json.loads(self._clean_json_response(response))
-            return result
-        except json.JSONDecodeError:
-            self.logger.warning(f"无法解析LLM响应为JSON: {response}")
-            return {
-                "systematic_risk": "中",
-                "idiosyncratic_risk": "中",
-                "liquidity_risk": "中",
-                "concentration_risk": "中",
-                "overall_risk_score": 0.5,
-                "risk_recommendations": [response],
-                "stress_test_scenarios": [],
-            }
+#         response = self._make_request(messages, temperature=0.3)
+#         try:
+#             result = json.loads(self._clean_json_response(response))
+#             return result
+#         except json.JSONDecodeError:
+#             self.logger.warning(f"无法解析LLM响应为JSON: {response}")
+#             return {
+#                 "systematic_risk": "中",
+#                 "idiosyncratic_risk": "中",
+#                 "liquidity_risk": "中",
+#                 "concentration_risk": "中",
+#                 "overall_risk_score": 0.5,
+#                 "risk_recommendations": [response],
+#                 "stress_test_scenarios": [],
+#             }
 
     def _get_company_context(self, stock_symbol: str) -> str:
         """
@@ -824,7 +824,6 @@ class LLMAnalyzer:
         Returns:
             公司背景信息字符串
         """
-        # 基于股票代码推断公司信息的简单字典
         company_info = {
             "AAPL": {
                 "name": "Apple Inc.",
