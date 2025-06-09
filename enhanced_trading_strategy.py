@@ -299,7 +299,9 @@ class EnhancedTradingStrategy:
             try:
                 # 使用LLM分析情感
                 sentiment_analysis = self.llm_analyzer.analyze_market_sentiment(
-                    stock_symbol, recent_data
+                    stock_symbol,
+                    recent_data,
+                    current_date=current_date,
                 )
 
                 # 存储情感分析结果
@@ -842,6 +844,7 @@ class EnhancedTradingStrategy:
                     "stock_symbol": stock_symbol,
                     "recent_data": recent_data,
                     "news_headlines": None,  # 可以添加新闻数据
+                    "current_date": current_date,
                 }
             )
 
