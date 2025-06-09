@@ -594,7 +594,7 @@ class EnhancedTradingStrategy:
 
                 if (tech_action == "buy" and llm_action == "买入") or (tech_action == "sell" and llm_action == "卖出"):
                     # 技术分析与LLM信号一致，增强决策
-                    decision["action"]["shares"] = int(decision["action"]["shares"] * 1.5)
+                    decision["action"]["shares"] = int(decision["action"]["shares"] * 1.3)
                     decision["reason"] += f" [技术分析确认: {tech_reason}]"
                     decision["confidence"] = min(0.95, decision["confidence"] + 0.1)
                 elif (tech_action == "buy" and llm_action == "卖出") or (tech_action == "sell" and llm_action == "买入"):
@@ -614,12 +614,12 @@ class EnhancedTradingStrategy:
                     decision["action"]["shares"] = int(decision["action"]["shares"] * 0.6)
                     decision["reason"] += f" [高风险调整]"
                 elif risk_level == "低" and decision["action"]["type"] == "buy":
-                    decision["action"]["shares"] = int(decision["action"]["shares"] * 1.5)
+                    decision["action"]["shares"] = int(decision["action"]["shares"] * 1.2)
                     decision["reason"] += f" [低风险增持]"
                 
                 # 通过情感分数进一步微调
                 sentiment_factor = sentiment_score if decision["action"]["type"] == "buy" else (1 - sentiment_score)
-                decision["action"]["shares"] = int(decision["action"]["shares"] * (0.7 + sentiment_factor * 0.6))
+                decision["action"]["shares"] = int(decision["action"]["shares"] * (0.6 + sentiment_factor * 0.6))
             
 
             decision["action"]["shares"] = max(50, min(decision["action"]["shares"], 3000))
