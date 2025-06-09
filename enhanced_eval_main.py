@@ -378,7 +378,8 @@ class EnhancedStrategyEvaluator:
         from matplotlib import rcParams
 
         # 设置字体，确保支持中文
-        rcParams['font.sans-serif'] = ['SimHei']  # 使用黑体
+        rcParams['font.family'] = ['sans-serif']
+        rcParams['font.sans-serif'] = ['Noto Sans CJK SC']  # 使用Noto字体支持中文
         rcParams['axes.unicode_minus'] = False  # 避免负号显示为方块
         plt.style.use('seaborn-v0_8')
         fig, axes = plt.subplots(2, 3, figsize=(18, 12))

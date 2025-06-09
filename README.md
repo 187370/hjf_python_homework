@@ -108,6 +108,9 @@ LLM_API_KEY = "your-deepseek-api-key-here"
 # 🆕 评估LLM增强策略（推荐）
 python enhanced_eval_main.py
 
+# 自动重复评估直到收益率达到目标
+python run_until_target.py
+
 # 快速启动和演示
 python quick_start.py
 
