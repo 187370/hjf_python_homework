@@ -8,17 +8,19 @@ HEADERS = {
 
 def search_searxng(
     query: str,
-   
     current_date: Optional[str] = None,
-    time_range: int=30,
+    time_range: int = 30,
     category: str = "general",
     lang: str = "zh-CN",
     page: int = 1,
     engines: Optional[str] = None,
+    return_results: bool = False,
 ):
+    """使用 searxng 搜索指定内容并返回结果列表"""
+
     # 构造时间语法
     date_filter = f"查询{current_date}前{time_range}之内"
-    
+
     full_query = f"{date_filter}{query}"
 
     params = {
@@ -32,24 +34,37 @@ def search_searxng(
     if engines:
         params["engines"] = engines
 
-    print(f"\n 正在搜索：{full_query}\n")
+    if not return_results:
+        print(f"\n 正在搜索：{full_query}\n")
+
     response = requests.get(f"{SEARXNG_URL}/search", params=params, headers=HEADERS)
-    
+
     if response.status_code != 200:
-        print(" 搜索失败:", response.status_code, response.text)
-        return
+        if not return_results:
+            print(" 搜索失败:", response.status_code, response.text)
+        return []
 
     results = response.json().get("results", [])
     if not results:
-        print(" 没有找到结果")
-        return
+        if not return_results:
+            print(" 没有找到结果")
+        return []
 
-    for i, r in enumerate(results, 1):
-        title = r.get("title", "（无标题）")
-        url = r.get("url", "")
-        content = r.get("content", "（无摘要）")
+    formatted_results = []
+    for r in results:
+        formatted_results.append(
+            {
+                "title": r.get("title", ""),
+                "url": r.get("url", ""),
+                "content": r.get("content", ""),
+            }
+        )
 
-        print(f"{i}. {title}\n    摘要：{content}\n    链接：{url}\n")
+    if not return_results:
+        for i, r in enumerate(formatted_results, 1):
+            print(f"{i}. {r['title']}\n    摘要：{r['content']}\n    链接：{r['url']}\n")
+
+    return formatted_results
 
 
 if __name__ == "__main__":
