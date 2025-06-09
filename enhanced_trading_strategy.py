@@ -582,29 +582,21 @@ class EnhancedTradingStrategy:
                 tech_action = tech_decision["action"]["type"]
                 tech_shares = tech_decision["action"]["shares"]
                 tech_reason = tech_decision["reason"]
-                tech_conf = tech_decision.get("confidence", 0.5)  
+                # tech_conf = tech_decision.get("confidence", 0.5)  
+                # llm_dir = 1 if llm_action == "买入" else -1
+                # tech_dir = 1 if tech_action == "buy" else -1
+                # combined_dir = llm_dir * llm_confidence + tech_dir * tech_conf
 
-                llm_dir = 1 if llm_action == "买入" else -1
-                tech_dir = 1 if tech_action == "buy" else -1
-                combined_dir = llm_dir * llm_confidence + tech_dir * tech_conf
-
-                if llm_dir == tech_dir:
-                    # 信号一致，按置信度加权调整交易量
-                    weighted_shares = (
-                        base_shares * llm_confidence + tech_shares * tech_conf
-                    ) / (llm_confidence + tech_conf)*(1.2 if decision["action"]["type"] == "buy" else 1)
-                    decision["action"]["shares"] = int(weighted_shares)
+                if (tech_action == "buy" and llm_action == "买入") or (tech_action == "sell" and llm_action == "卖出"):
+                    # 技术分析与LLM信号一致，增强决策
+                    decision["action"]["shares"] = int(decision["action"]["shares"] * 1.5)
                     decision["reason"] += f" [技术分析确认: {tech_reason}]"
-                    decision["confidence"] = min(0.95, 0.8 * llm_confidence + 0.2 * tech_conf)
-                else:
-                    # 信号冲突，按置信度大小决定方向和仓位
-                    decision["action"]["type"] = "buy" if combined_dir >= 0 else "sell"
-                    weighted_shares = abs(
-                        base_shares * llm_confidence - tech_shares * tech_conf*0.5
-                    )
-                    decision["action"]["shares"] = int(weighted_shares)
-                    decision["reason"] += f" [信号冲突: {tech_reason}]"
-                    decision["confidence"] = max(0.2, min(0.9, abs(combined_dir)))
+                    decision["confidence"] = min(0.95, decision["confidence"] + 0.1)
+                elif (tech_action == "buy" and llm_action == "卖出") or (tech_action == "sell" and llm_action == "买入"):
+                    # 技术分析与LLM信号冲突，减弱决策但仍以LLM为主
+                    decision["action"]["shares"] = int(decision["action"]["shares"] * 0.7)
+                    decision["reason"] += f" [技术分析冲突: {tech_reason}]"
+                    decision["confidence"] = max(0.2, decision["confidence"] - 0.1)
             
             # 情感调整
             if sentiment_data:

@@ -376,14 +376,10 @@ class EnhancedStrategyEvaluator:
     def plot_enhanced_analysis(self, results, save_path="enhanced_strategy_analysis.png"):
         """绘制增强策略分析图表"""
         from matplotlib import rcParams
-
-        # 设置字体，确保支持中文
-        rcParams['font.family'] = ['sans-serif']
-        rcParams['font.sans-serif'] = ['Noto Sans CJK SC']  # 使用Noto字体支持中文
         rcParams['axes.unicode_minus'] = False  # 避免负号显示为方块
         plt.style.use('seaborn-v0_8')
         fig, axes = plt.subplots(2, 3, figsize=(18, 12))
-        fig.suptitle('LLM增强股票交易策略分析报告', fontsize=16, fontweight='bold')
+        fig.suptitle('LLM-Enhanced Stock Trading Strategy Analysis', fontsize=16, fontweight='bold')
         
         portfolio_history = results['portfolio_history']
         dates = [p['date'] for p in portfolio_history]
@@ -392,10 +388,10 @@ class EnhancedStrategyEvaluator:
         # 1. 投资组合价值变化
         ax1 = axes[0, 0]
         ax1.plot(dates, values, linewidth=2, color='blue')
-        ax1.axhline(y=self.initial_cash, color='red', linestyle='--', alpha=0.7, label='初始资金')
-        ax1.set_title('投资组合价值变化')
-        ax1.set_xlabel('日期')
-        ax1.set_ylabel('投资组合价值 ($)')
+        ax1.axhline(y=self.initial_cash, color='red', linestyle='--', alpha=0.7, label='Initial Capital')
+        ax1.set_title('Portfolio Value Over Time')
+        ax1.set_xlabel('Date')
+        ax1.set_ylabel('Portfolio Value ($)')
         ax1.legend()
         ax1.grid(True, alpha=0.3)
         
@@ -403,10 +399,10 @@ class EnhancedStrategyEvaluator:
         ax2 = axes[0, 1]
         returns = pd.Series(values).pct_change().dropna() * 100
         ax2.hist(returns, bins=30, alpha=0.7, color='green')
-        ax2.axvline(returns.mean(), color='red', linestyle='--', label=f'平均收益率: {returns.mean():.2f}%')
-        ax2.set_title('日收益率分布')
-        ax2.set_xlabel('收益率 (%)')
-        ax2.set_ylabel('频次')
+        ax2.axvline(returns.mean(), color='red', linestyle='--', label=f'Avg. Return: {returns.mean():.2f}%')
+        ax2.set_title('Daily Return Distribution')
+        ax2.set_xlabel('Return (%)')
+        ax2.set_ylabel('Frequency')
         ax2.legend()
         
         # 3. 回撤分析
@@ -415,9 +411,9 @@ class EnhancedStrategyEvaluator:
         drawdown = (np.array(values) - peak) / peak * 100
         ax3.fill_between(dates, 0, drawdown, color='red', alpha=0.3)
         ax3.plot(dates, drawdown, color='red', linewidth=1)
-        ax3.set_title('回撤分析')
-        ax3.set_xlabel('日期')
-        ax3.set_ylabel('回撤 (%)')
+        ax3.set_title('Drawdown Analysis')
+        ax3.set_xlabel('Date')
+        ax3.set_ylabel('Drawdown (%)')
         ax3.grid(True, alpha=0.3)
         
         # 4. 交易活动
@@ -431,17 +427,17 @@ class EnhancedStrategyEvaluator:
         monthly_trades = all_dates.to_period('M').value_counts().sort_index()
         
         ax4.bar(range(len(monthly_trades)), monthly_trades.values, color='purple', alpha=0.7)
-        ax4.set_title('每月交易次数')
-        ax4.set_xlabel('月份')
-        ax4.set_ylabel('交易次数')
+        ax4.set_title('Monthly Trade Count')
+        ax4.set_xlabel('Month')
+        ax4.set_ylabel('Number of Trades')
         
         # 5. 持仓变化
         ax5 = axes[1, 1]
         position_counts = [p['position_count'] for p in portfolio_history]
         ax5.plot(dates, position_counts, marker='o', markersize=3, color='orange')
-        ax5.set_title('持仓股票数量变化')
-        ax5.set_xlabel('日期')
-        ax5.set_ylabel('持仓股票数')
+        ax5.set_title('Number of Held Stocks Over Time')
+        ax5.set_xlabel('Date')
+        ax5.set_ylabel('Stock Count')
         ax5.grid(True, alpha=0.3)
         
         # 6. LLM情感分析
@@ -454,10 +450,10 @@ class EnhancedStrategyEvaluator:
             sentiment_scores = [recent_sentiments[stock]['sentiment_score'] for stock in stocks]
             
             bars = ax6.bar(stocks, sentiment_scores, color='lightblue')
-            ax6.axhline(y=0.5, color='red', linestyle='--', alpha=0.7, label='中性线')
-            ax6.set_title('最新股票情感分析')
-            ax6.set_xlabel('股票代码')
-            ax6.set_ylabel('情感评分')
+            ax6.axhline(y=0.5, color='red', linestyle='--', alpha=0.7, label='Neutral Line')
+            ax6.set_title('Recent Sentiment Scores')
+            ax6.set_xlabel('Stock Symbol')
+            ax6.set_ylabel('Sentiment Score')
             ax6.set_ylim(0, 1)
             ax6.legend()
             

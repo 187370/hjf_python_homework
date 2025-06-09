@@ -8,11 +8,11 @@ import time
 
 TARGET_RETURN = 170
 RESULT_DIR = "result"
-MAX_INDEX = 5
+MAX_INDEX = 100
 
 
 def next_available_index() -> int | None:
-    """Return the smallest unused index in ``RESULT_DIR`` within [0, MAX_INDEX)."""
+    """返回 ``RESULT_DIR`` 目录中在 [0, MAX_INDEX) 范围内未使用的最小索引。"""
     used = set()
     if os.path.isdir(RESULT_DIR):
         for name in os.listdir(RESULT_DIR):
@@ -40,23 +40,23 @@ attempt = 1
 while True:
     idx = next_available_index()
     if idx is None:
-        print("No available index from 0 to 4. Stop running.")
+        print(f"没有可用的索引（0到{MAX_INDEX}）。停止运行。")
         break
 
-    print(f"Attempt {attempt} (index {idx}): running enhanced_eval_main.py...")
+    print(f"尝试第{attempt}次（索引{idx}）：正在运行 enhanced_eval_main.py...")
     proc = subprocess.run([sys.executable, "enhanced_eval_main.py"])
     if proc.returncode != 0:
-        print("Execution failed, retrying...")
+        print("执行失败，正在重试...")
         attempt += 1
         continue
 
-    # Move output files to result directory with index suffix
+    # 将输出文件移动到结果目录，并添加索引后缀
     for src, pattern in FILES.items():
         if os.path.exists(src):
             dst = os.path.join(RESULT_DIR, pattern.format(i=idx))
             shutil.move(src, dst)
         else:
-            print(f"Warning: {src} not found")
+            print(f"警告：未找到文件 {src}")
 
     eval_path = os.path.join(RESULT_DIR, FILES["enhanced_strategy_evaluation.json"].format(i=idx))
     try:
@@ -64,14 +64,13 @@ while True:
             data = json.load(f)
         total_return = data.get("total_return", 0)
     except Exception as e:
-        print(f"Failed to read results: {e}")
+        print(f"读取结果失败：{e}")
         total_return = 0
 
-    print(f"Total return: {total_return:.2f}%")
+    print(f"总收益率：{total_return:.2f}%")
     if total_return >= TARGET_RETURN:
-        print(f"Target achieved: {total_return:.2f}% >= {TARGET_RETURN}")
+        print(f"已达到目标：{total_return:.2f}% >= {TARGET_RETURN}")
         break
-
+    
     attempt += 1
     time.sleep(1)
-
