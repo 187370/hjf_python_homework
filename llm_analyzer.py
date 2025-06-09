@@ -12,6 +12,7 @@ import aiohttp
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 import random
+from search import search_searxng
 
 
 class LLMAnalyzer:
@@ -189,6 +190,7 @@ class LLMAnalyzer:
                         task["stock_symbol"],
                         task["recent_data"],
                         task.get("news_headlines"),
+                        task.get("current_date"),
                         client_index,
                     )
                 elif task["task_type"] == "trading_signal":
@@ -239,6 +241,7 @@ class LLMAnalyzer:
         stock_symbol: str,
         recent_data: pd.DataFrame,
         news_headlines: List[str] = None,
+        current_date: Optional[str] = None,
         client_index: int = 0,
     ) -> Dict[str, Any]:
         """
@@ -280,9 +283,27 @@ class LLMAnalyzer:
         # 公司背景信息（基于股票代码推断）
         company_info = self._get_company_context(stock_symbol)
 
+        search_summaries = []
+        if current_date:
+            try:
+                search_results = search_searxng(
+                    f"{stock_symbol} 股票",
+                    current_date=str(current_date),
+                    time_range=30,
+                    category="news",
+                    engines="google,bing",
+                    return_results=True,
+                )
+                for r in search_results[:3]:
+                    summary = r.get("content") or r.get("title")
+                    if summary:
+                        search_summaries.append(summary.strip())
+            except Exception as e:
+                self.logger.warning(f"搜索信息获取失败 {stock_symbol}: {e}")
+
         # 构建增强分析提示
         prompt = f"""
-作为资深金融分析师，请深度分析股票 {stock_symbol} 的市场情感和投资前景。
+今天是 {current_date or '未知日期'}，请结合该日期前的市场信息分析股票 {stock_symbol} 的情绪和前景。
 
 === 公司背景 ===
 {company_info}
@@ -295,6 +316,14 @@ class LLMAnalyzer:
 
 === 30天价格历史轨迹 ===
 {chr(10).join(price_history) if price_history else "数据不足"}
+"""
+
+        if search_summaries:
+            prompt += "\n=== 相关新闻摘要 ===\n" + "\n".join(
+                f"- {s}" for s in search_summaries
+            )
+
+        prompt += """
 
 === 市场环境分析 ===
 请结合以上信息，从以下维度进行综合分析：
@@ -435,6 +464,7 @@ class LLMAnalyzer:
         stock_symbol: str,
         recent_data: pd.DataFrame,
         news_headlines: List[str] = None,
+        current_date: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         分析市场情感和股票前景
@@ -463,9 +493,28 @@ class LLMAnalyzer:
         else:
             return {"sentiment_score": 0.5, "confidence": 0.0, "reasoning": "数据不足"}
 
+        # 获取搜索信息
+        search_summaries = []
+        if current_date:
+            try:
+                search_results = search_searxng(
+                    f"{stock_symbol} 股票",
+                    current_date=str(current_date),
+                    time_range=30,
+                    category="news",
+                    engines="google,bing",
+                    return_results=True,
+                )
+                for r in search_results[:3]:
+                    summary = r.get("content") or r.get("title")
+                    if summary:
+                        search_summaries.append(summary.strip())
+            except Exception as e:
+                self.logger.warning(f"搜索信息获取失败 {stock_symbol}: {e}")
+
         # 构建提示词
         prompt = f"""
-作为专业的金融分析师，请分析股票 {stock_symbol} 的市场情感和投资前景。
+今天是 {current_date or '未知日期'}，请分析股票 {stock_symbol} 的市场情感和投资前景。
 
 股票数据摘要：
 - 最新收盘价: ${latest_price:.2f}
@@ -474,6 +523,9 @@ class LLMAnalyzer:
 - 成交量趋势比率: {volume_trend:.2f}
 
 """
+
+        if search_summaries:
+            prompt += "相关新闻摘要:\n" + "\n".join(f"- {s}" for s in search_summaries) + "\n"
 
         if news_headlines:
             prompt += f"\n相关新闻标题：\n"
