@@ -106,20 +106,38 @@ class EnhancedStrategyEvaluator:
         for i, date in enumerate(tqdm(trading_dates, desc="增强策略回测进度")):
             # 准备当前可用数据
             current_data = self.prepare_test_data(all_data, trading_dates[0], date)
+
+            # 计算当前投资组合价值供LLM参考
+            portfolio_value_before = cash
+            for sym, qty in positions.items():
+                if sym in current_data and current_data[sym]:
+                    portfolio_value_before += qty * current_data[sym][-1][4]
+
+            portfolio_state = {"cash": cash, "positions": dict(positions)}
               
-            # 每10个交易日进行一次LLM分析（控制API调用频率）
-            if i % 10 == 0:
+            # 每1个交易日进行一次LLM分析（控制API调用频率）
+            if i % 1 == 0:
                 try:
                     print(f"分析 {date.strftime('%Y-%m-%d')} 的市场情感...")
                     
                     if self.enable_parallel:
                         # 使用并行处理
                         strategy.analyze_market_sentiment_for_all_stocks_parallel(all_data, date)
-                        strategy.generate_llm_trading_signals_parallel(all_data, date)
+                        strategy.generate_llm_trading_signals_parallel(
+                            all_data,
+                            date,
+                            portfolio_state=portfolio_state,
+                            total_portfolio_value=portfolio_value_before,
+                        )
                     else:
                         # 使用原有的串行处理
                         strategy.analyze_market_sentiment_for_all_stocks(all_data, date)
-                        strategy.generate_llm_trading_signals(all_data, date)
+                        strategy.generate_llm_trading_signals(
+                            all_data,
+                            date,
+                            portfolio_state=portfolio_state,
+                            total_portfolio_value=portfolio_value_before,
+                        )
                     
                     # 记录LLM分析
                     analysis_summary = strategy.get_analysis_summary()
@@ -131,8 +149,21 @@ class EnhancedStrategyEvaluator:
                 except Exception as e:
                     print(f"LLM分析失败: {e}")
             
+            # 计算当前投资组合价值供决策参考
+            portfolio_value_before = cash
+            for sym, qty in positions.items():
+                if sym in current_data and current_data[sym]:
+                    portfolio_value_before += qty * current_data[sym][-1][4]
+
+            portfolio_state = {"cash": cash, "positions": dict(positions)}
+
             # 使用增强决策
-            decisions = strategy.enhanced_make_decision(current_data, date)
+            decisions = strategy.enhanced_make_decision(
+                current_data,
+                date,
+                portfolio=portfolio_state,
+                total_portfolio_value=portfolio_value_before,
+            )
             
             # 执行交易决策
             day_trades = []  # 当日交易记录
@@ -219,7 +250,7 @@ class EnhancedStrategyEvaluator:
             self.daily_portfolio_details.append(daily_detail)
             
             # 每日投资组合报告（每10个交易日输出详细信息）
-            if i % 10 == 0 or i == len(trading_dates) - 1:
+            if i % 1 == 0 or i == len(trading_dates) - 1:
                 self._print_daily_portfolio_report(date, daily_detail, day_trades)
         
         # 计算最终结果
@@ -590,7 +621,7 @@ def main():
     # 生成交易日期
     start_date = datetime(2011, 1, 1)  # 根据数据集的实际时间范围调整
     end_date = datetime(2018, 1, 1)
-    trading_dates = evaluator.generate_trading_dates(start_date, 60, min_gap=50, max_gap=100)
+    trading_dates = evaluator.generate_trading_dates(start_date, 60, min_gap=30, max_gap=100)
     trading_dates = [d for d in trading_dates if d < end_date]
     
     print(f"生成 {len(trading_dates)} 个交易日期")
