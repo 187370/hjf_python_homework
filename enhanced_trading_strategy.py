@@ -25,7 +25,6 @@ class EnhancedTradingStrategy:
     """
     增强版交易策略，集成大语言模型分析
     """
-
     def __init__(
         self,
         stock_pool,
@@ -37,7 +36,6 @@ class EnhancedTradingStrategy:
     ):
         """
         初始化增强版交易策略
-
         Args:
             stock_pool: 允许交易的股票代码列表
             llm_api_keys: 大语言模型API密钥列表（支持多个密钥）
@@ -55,7 +53,7 @@ class EnhancedTradingStrategy:
         self.prediction_days = 5  # 预测未来天数
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        # 新增：LLM分析器和关系网络（支持多API密钥）
+        # LLM分析器和关系网络（支持多API密钥）
         if isinstance(llm_api_keys, str):
             llm_api_keys = [llm_api_keys]
         self.llm_analyzer = LLMAnalyzer(llm_api_keys, llm_base_url)
@@ -74,40 +72,40 @@ class EnhancedTradingStrategy:
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
 
-    def _build_model(self, input_dim):
-        """构建LSTM模型"""
+    # def _build_model(self, input_dim):
+    #     """构建LSTM模型"""
 
-        class LSTM(nn.Module):
-            def __init__(self, input_dim, hidden_dim=64, num_layers=2, output_dim=1):
-                super(LSTM, self).__init__()
-                self.hidden_dim = hidden_dim
-                self.num_layers = num_layers
+    #     class LSTM(nn.Module):
+    #         def __init__(self, input_dim, hidden_dim=64, num_layers=2, output_dim=1):
+    #             super(LSTM, self).__init__()
+    #             self.hidden_dim = hidden_dim
+    #             self.num_layers = num_layers
 
-                self.lstm = nn.LSTM(
-                    input_dim, hidden_dim, num_layers, batch_first=True, dropout=0.2
-                )
+    #             self.lstm = nn.LSTM(
+    #                 input_dim, hidden_dim, num_layers, batch_first=True, dropout=0.2
+    #             )
 
-                self.fc = nn.Sequential(
-                    nn.Linear(hidden_dim, 32),
-                    nn.ReLU(),
-                    nn.Dropout(0.2),
-                    nn.Linear(32, output_dim),
-                )
+    #             self.fc = nn.Sequential(
+    #                 nn.Linear(hidden_dim, 32),
+    #                 nn.ReLU(),
+    #                 nn.Dropout(0.2),
+    #                 nn.Linear(32, output_dim),
+    #             )
 
-            def forward(self, x):
-                h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).to(
-                    x.device
-                )
-                c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).to(
-                    x.device
-                )
+    #         def forward(self, x):
+    #             h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).to(
+    #                 x.device
+    #             )
+    #             c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).to(
+    #                 x.device
+    #             )
 
-                out, _ = self.lstm(x, (h0, c0))
-                out = self.fc(out[:, -1, :])
-                return out
+    #             out, _ = self.lstm(x, (h0, c0))
+    #             out = self.fc(out[:, -1, :])
+    #             return out
 
-        model = LSTM(input_dim=input_dim).to(self.device)
-        return model
+    #     model = LSTM(input_dim=input_dim).to(self.device)
+    #     return model
 
     def _create_features(self, df):
         """创建技术指标特征，增加LLM情感特征"""
@@ -126,9 +124,9 @@ class EnhancedTradingStrategy:
         )
         df["macd"] = ta.trend.macd_diff(df["Close"]) if len(df) >= 26 else np.nan
 
-        # ADX需要更多数据，使用try-except保护
+        # ADX
         try:
-            if len(df) >= 20:  # ADX通常需要更多数据点
+            if len(df) >= 20:  
                 df["adx"] = ta.trend.adx(df["High"], df["Low"], df["Close"])
             else:
                 df["adx"] = np.nan
@@ -170,7 +168,7 @@ class EnhancedTradingStrategy:
             df["stoch"] = 50.0
             df["cci"] = 0.0
 
-        # 新增：集成LLM情感特征
+        # 集成LLM情感特征
         stock_symbol = df["Name"].iloc[0] if "Name" in df.columns else "UNKNOWN"
         if stock_symbol in self.sentiment_history:
             # 使用最近的情感分析结果
@@ -183,7 +181,6 @@ class EnhancedTradingStrategy:
         else:
             df["llm_sentiment"] = 0.5  # 中性情感
 
-        # 额外特征 - 基于聚类结果添加
         if self.clusters is not None and stock_symbol in self.clusters:
             cluster_id = self.clusters[stock_symbol]
             df["cluster"] = cluster_id
@@ -191,6 +188,16 @@ class EnhancedTradingStrategy:
             df["cluster"] = 0
 
         return df
+
+    def _calculate_pnl_history(self, df):
+        """根据收盘价计算简单的日盈亏(单股)"""
+        pnl = []
+        if len(df) < 2:
+            return pnl
+        for i in range(1, len(df)):
+            change = df.iloc[i]["Close"] - df.iloc[i - 1]["Close"]
+            pnl.append((df.iloc[i]["Date"].strftime("%m-%d"), float(change)))
+        return pnl
 
     def _calculate_dynamic_shares(self, symbol, price, action, portfolio, total_value):
         """根据资金和仓位动态计算交易股数"""
@@ -230,7 +237,7 @@ class EnhancedTradingStrategy:
         # 计算股票收益率相关性
         returns_data = {}
         for stock, data in all_data.items():
-            if len(data) > 20:  # 确保有足够的数据
+            if len(data) > 20:
                 returns = data["Close"].pct_change().dropna()
                 returns_data[stock] = returns
 
@@ -294,7 +301,7 @@ class EnhancedTradingStrategy:
             f"股票关系网络构建完成: {self.stock_network.number_of_nodes()}个节点, {self.stock_network.number_of_edges()}条边"
         )
 
-        # 新增：保存网络图为图片
+        # 保存网络图为图片
         try:
             self.save_stock_network_figure()
         except Exception as e:
@@ -309,7 +316,7 @@ class EnhancedTradingStrategy:
         plt.figure(figsize=(10, 8))
         pos = nx.spring_layout(self.stock_network, seed=42)
 
-        # 根据行业着色节点
+
         industries = {
             data.get("industry", "Unknown") for _, data in self.stock_network.nodes(data=True)
         }
@@ -345,7 +352,7 @@ class EnhancedTradingStrategy:
 
     def analyze_market_sentiment_for_all_stocks(self, all_data, current_date):
         """
-        为所有股票分析市场情感
+        为所有股票分析市场情感(串行版，当并行不用的时候用，现在废弃了)
 
         Args:
             all_data: 所有股票的历史数据
@@ -367,13 +374,14 @@ class EnhancedTradingStrategy:
                 continue
 
             recent_data = current_data.tail(30)  # 最近30天的数据
-            print(recent_data)
+            pnl_history = self._calculate_pnl_history(recent_data)
             try:
                 # 使用LLM分析情感
                 sentiment_analysis = self.llm_analyzer.analyze_market_sentiment(
                     stock_symbol,
                     recent_data,
                     current_date=current_date,
+                    pnl_history=pnl_history,
                 )
 
                 # 存储情感分析结果
@@ -392,7 +400,7 @@ class EnhancedTradingStrategy:
                     }
                 )
 
-                # 只保留最近的分析结果（避免内存过度使用）
+
                 if len(self.sentiment_history[stock_symbol]) > 100:
                     self.sentiment_history[stock_symbol] = self.sentiment_history[
                         stock_symbol
@@ -409,7 +417,7 @@ class EnhancedTradingStrategy:
         total_portfolio_value=None,
     ):
         """
-        基于LLM生成交易信号
+        基于LLM生成交易信号(串行版，当并行不用的时候用，现在废弃了)
 
         Args:
             all_data: 所有股票的历史数据
@@ -525,7 +533,7 @@ class EnhancedTradingStrategy:
         
         # 基于LLM信号生成主导决策
         for stock_symbol in self.stock_pool:
-            # 检查是否有当前股票的数据
+          
             if stock_symbol not in current_data or not current_data[stock_symbol]:
                 continue
                 
@@ -533,21 +541,18 @@ class EnhancedTradingStrategy:
             latest_data = current_data[stock_symbol][-1]
             price = latest_data[4]  # 收盘价
             
-            # 获取LLM信号
+      
             llm_signal = self.llm_signals.get(stock_symbol, {})
             if not llm_signal or "signal" not in llm_signal:
-                continue  # 如果没有LLM信号，跳过该股票
+                continue  
                 
-            # 获取情感数据
             sentiment_data = self.sentiment_history.get(stock_symbol, [])
             sentiment_info = sentiment_data[-1] if sentiment_data else {}
             
-            # 基于LLM信号构建初始决策
             llm_action = llm_signal.get("signal", "持有")
             llm_confidence = llm_signal.get("confidence", 0.5)
             llm_reasoning = llm_signal.get("reasoning", "")
             
-            # 只处理买入或卖出信号，持有信号跳过
             if llm_action == "持有":
                 continue
                 
@@ -589,7 +594,7 @@ class EnhancedTradingStrategy:
 
                 if (tech_action == "buy" and llm_action == "买入") or (tech_action == "sell" and llm_action == "卖出"):
                     # 技术分析与LLM信号一致，增强决策
-                    decision["action"]["shares"] = int(decision["action"]["shares"] * 1.5)
+                    decision["action"]["shares"] = int(decision["action"]["shares"] * 1.3)
                     decision["reason"] += f" [技术分析确认: {tech_reason}]"
                     decision["confidence"] = min(0.95, decision["confidence"] + 0.1)
                 elif (tech_action == "buy" and llm_action == "卖出") or (tech_action == "sell" and llm_action == "买入"):
@@ -609,14 +614,14 @@ class EnhancedTradingStrategy:
                     decision["action"]["shares"] = int(decision["action"]["shares"] * 0.6)
                     decision["reason"] += f" [高风险调整]"
                 elif risk_level == "低" and decision["action"]["type"] == "buy":
-                    decision["action"]["shares"] = int(decision["action"]["shares"] * 1.5)
+                    decision["action"]["shares"] = int(decision["action"]["shares"] * 1.2)
                     decision["reason"] += f" [低风险增持]"
                 
                 # 通过情感分数进一步微调
                 sentiment_factor = sentiment_score if decision["action"]["type"] == "buy" else (1 - sentiment_score)
-                decision["action"]["shares"] = int(decision["action"]["shares"] * (0.7 + sentiment_factor * 0.6))
+                decision["action"]["shares"] = int(decision["action"]["shares"] * (0.6 + sentiment_factor * 0.6))
             
-            # 确保交易量在合理范围内
+
             decision["action"]["shares"] = max(50, min(decision["action"]["shares"], 3000))
             
             decisions.append(decision)
@@ -632,7 +637,7 @@ class EnhancedTradingStrategy:
             if not data_list or stock_symbol not in self.stock_pool:
                 continue
 
-            # 转换数据格式
+
             df = pd.DataFrame(
                 data_list,
                 columns=["Date", "Open", "High", "Low", "Close", "Volume", "Name"],
@@ -898,7 +903,7 @@ class EnhancedTradingStrategy:
         """
         self.logger.info(f"并行分析 {current_date} 的所有股票市场情感...")
 
-        # 准备分析任务
+
         analysis_tasks = []
         for stock_symbol in self.stock_pool:
             if stock_symbol not in all_data:
@@ -907,23 +912,25 @@ class EnhancedTradingStrategy:
             stock_data = all_data[stock_symbol]
             current_data = stock_data[stock_data["Date"] <= current_date]
 
-            if len(current_data) < 10:  # 需要足够的历史数据
+            if len(current_data) < 10: 
                 continue
 
-            # 获取最近的数据用于分析
+
             recent_data = current_data.tail(30)
+            pnl_history = self._calculate_pnl_history(recent_data)
 
             analysis_tasks.append(
                 {
                     "task_type": "sentiment",
                     "stock_symbol": stock_symbol,
                     "recent_data": recent_data,
-                    "news_headlines": None,  # 可以添加新闻数据
+                    "news_headlines": None,
                     "current_date": current_date,
+                    "pnl_history": pnl_history,
                 }
             )
 
-        # 执行并行分析
+        # 并行分析
         results = self.llm_analyzer.batch_analyze_stocks_parallel(analysis_tasks)
 
         # 保存结果
@@ -935,7 +942,7 @@ class EnhancedTradingStrategy:
                 # 添加日期信息
                 sentiment_data["date"] = current_date
 
-                # 保存到历史记录
+                
                 if stock_symbol not in self.sentiment_history:
                     self.sentiment_history[stock_symbol] = []
                 self.sentiment_history[stock_symbol].append(sentiment_data)
@@ -962,7 +969,7 @@ class EnhancedTradingStrategy:
         """
         self.logger.info(f"并行生成 {current_date} 的LLM交易信号...")
 
-        # 准备分析任务
+       
         analysis_tasks = []
 
         for stock_symbol in self.stock_pool:
@@ -980,7 +987,7 @@ class EnhancedTradingStrategy:
             enhanced_data = self._create_features(current_data.copy())
             latest_data = enhanced_data.iloc[-1]
 
-            # 准备技术指标
+        
             technical_indicators = {
                 "rsi": latest_data.get("rsi", 50),
                 "macd": latest_data.get("macd", 0),
@@ -998,14 +1005,14 @@ class EnhancedTradingStrategy:
                 ),
             }
 
-            # 获取情感分析结果
+          
             market_sentiment = {}
             if (
                 stock_symbol in self.sentiment_history
                 and self.sentiment_history[stock_symbol]
             ):
                 market_sentiment = self.sentiment_history[stock_symbol][-1]
-                # 确保传递详细分析理由和关键因素
+                
                 if "reasoning" not in market_sentiment:
                     market_sentiment["reasoning"] = ""
                 if "key_factors" not in market_sentiment:
@@ -1052,10 +1059,10 @@ class EnhancedTradingStrategy:
                 stock_symbol = result["stock_symbol"]
                 signal_data = result["result"]
 
-                # 添加日期信息
+              
                 signal_data["date"] = current_date
 
-                # 保存交易信号
+               
                 self.llm_signals[stock_symbol] = signal_data
 
                 self.logger.info(

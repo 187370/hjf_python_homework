@@ -2,7 +2,7 @@ import openai
 import requests
 import json
 import time
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
@@ -57,7 +57,7 @@ class LLMAnalyzer:
         self._lock = threading.Lock()
         self._current_key_index = 0
 
-        # 设置日志
+     
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
 
@@ -104,7 +104,7 @@ class LLMAnalyzer:
         self, messages: List[Dict], temperature: float = 0.7, max_tokens: int = 1000
     ) -> str:
         """
-        向大语言模型发送请求
+        向大语言模型发送请求（串行版本，也废弃了）
 
         Args:
             messages: 消息列表
@@ -189,6 +189,7 @@ class LLMAnalyzer:
                         task["recent_data"],
                         task.get("news_headlines"),
                         task.get("current_date"),
+                        task.get("pnl_history"),
                         client_index,
                     )
                 elif task["task_type"] == "trading_signal":
@@ -204,7 +205,7 @@ class LLMAnalyzer:
 
                 future_to_task[future] = task
 
-            # 收集结果
+    
             for future in as_completed(future_to_task):
                 task = future_to_task[future]
                 try:
@@ -240,10 +241,11 @@ class LLMAnalyzer:
         recent_data: pd.DataFrame,
         news_headlines: List[str] = None,
         current_date: Optional[str] = None,
+        pnl_history: Optional[List[Tuple[str, float]]] = None,
         client_index: int = 0,
     ) -> Dict[str, Any]:
         """
-        单个股票情感分析（并行版本）- 增强版包含30天历史数据
+        单个股票情感分析（并行版本）
         """
         if recent_data.empty:
             return {
@@ -268,17 +270,17 @@ class LLMAnalyzer:
             else 1
         )
 
-        # 增强数据：30天历史价格变化趋势
+        # 30天历史价格变化趋势
         price_history = []
         if len(recent_data) >= 30:
-            for i in range(-30, 0, 5):  # 每5天采样一次
+            for i in range(-30, 0, 1):  # 每5天采样一次
                 idx = max(0, len(recent_data) + i)
                 if idx < len(recent_data):
                     price_history.append(
                         f"{recent_data.iloc[idx]['Date'].strftime('%m-%d')}: ${recent_data.iloc[idx]['Close']:.2f}"
                     )
 
-        # 公司背景信息（基于股票代码推断）
+        # 公司背景信息
         company_info = self._get_company_context(stock_symbol)
 
         search_summaries = []
@@ -298,9 +300,10 @@ class LLMAnalyzer:
                         search_summaries.append(summary.strip())
             except Exception as e:
                 self.logger.warning(f"搜索信息获取失败 {stock_symbol}: {e}")
-        # 构建增强分析提示
+   
         prompt = f"""
 今天是 {current_date or '未知日期'}，请结合该日期前的市场信息分析股票 {stock_symbol} 的情绪和前景。
+紧密联系{current_date}日期附近有关该公司的新闻（可以用你的世界知识），分析详细理由，并按指定格式回复
 
 === 公司背景 ===
 {company_info}
@@ -314,6 +317,9 @@ class LLMAnalyzer:
 === 30天价格历史轨迹 ===
 {chr(10).join(price_history) if price_history else "数据不足"}
 """
+        if pnl_history:
+            pnl_text = ", ".join(f"{d}: {p:+.2f}" for d, p in pnl_history)
+            prompt += f"\n=== 历史盈亏(单股) ===\n{pnl_text}"
 
         if search_summaries:
             prompt += "\n=== 相关新闻摘要 ===\n" + "\n".join(
@@ -462,9 +468,10 @@ class LLMAnalyzer:
         recent_data: pd.DataFrame,
         news_headlines: List[str] = None,
         current_date: Optional[str] = None,
+        pnl_history: Optional[List[Tuple[str, float]]] = None,
     ) -> Dict[str, Any]:
         """
-        分析市场情感和股票前景
+        分析市场情感和股票前景（串行版本，已废弃）
 
         Args:
             stock_symbol: 股票代码
@@ -520,6 +527,9 @@ class LLMAnalyzer:
 - 成交量趋势比率: {volume_trend:.2f}
 
 """
+        if pnl_history:
+            pnl_text = ", ".join(f"{d}: {p:+.2f}" for d, p in pnl_history)
+            prompt += f"历史盈亏(单股): {pnl_text}\n"
 
         if search_summaries:
             prompt += "相关新闻摘要:\n" + "\n".join(f"- {s}" for s in search_summaries) + "\n"
@@ -554,12 +564,12 @@ class LLMAnalyzer:
 
         response = self._make_request(messages, temperature=0.3)
         try:
-            # 尝试解析JSON响应，先清理可能的代码块标记
+           
             cleaned_response = self._clean_json_response(response)
             result = json.loads(cleaned_response)
             return result
         except json.JSONDecodeError:
-            # 如果JSON解析失败，返回默认值
+           
             self.logger.warning(f"无法解析LLM响应为JSON: {response}")
             return {
                 "sentiment_score": 0.5,
@@ -582,12 +592,12 @@ class LLMAnalyzer:
         Returns:
             关系分析结果，包含行业聚类和有向依赖关系
         """
-        # 找出高相关性的股票对
+   
         high_corr_pairs = []
         for i in range(len(correlation_matrix.columns)):
             for j in range(i + 1, len(correlation_matrix.columns)):
                 corr_value = correlation_matrix.iloc[i, j]
-                if abs(corr_value) > 0.7:  # 高相关性阈值
+                if abs(corr_value) > 0.7:  
                     high_corr_pairs.append(
                         {
                             "stock1": correlation_matrix.columns[i],
@@ -604,7 +614,7 @@ class LLMAnalyzer:
 高相关性股票对：
 """
 
-        for pair in high_corr_pairs[:10]:  # 只显示前10个
+        for pair in high_corr_pairs:
             prompt += (
                 f"- {pair['stock1']} vs {pair['stock2']}: {pair['correlation']:.3f}\n"
             )
@@ -661,7 +671,7 @@ class LLMAnalyzer:
         latest_price: Optional[float] = None,
     ) -> Dict[str, Any]:
         """
-        基于技术指标和市场情感生成交易信号
+        基于技术指标和市场情感生成交易信号（串行版本，已废弃）
 
         Args:
             stock_symbol: 股票代码
@@ -736,83 +746,83 @@ class LLMAnalyzer:
                 "reasoning": response,
             }
 
-    def analyze_risk_factors(
-        self, portfolio_data: Dict[str, pd.DataFrame], market_data: pd.DataFrame
-    ) -> Dict[str, Any]:
-        """
-        分析投资组合的风险因素
+#     def analyze_risk_factors(
+#         self, portfolio_data: Dict[str, pd.DataFrame], market_data: pd.DataFrame
+#     ) -> Dict[str, Any]:
+#         """
+#         分析投资组合的风险因素
 
-        Args:
-            portfolio_data: 投资组合中各股票的历史数据
-            market_data: 市场整体数据
+#         Args:
+#             portfolio_data: 投资组合中各股票的历史数据
+#             market_data: 市场整体数据
 
-        Returns:
-            风险分析结果
-        """
-        # 计算投资组合的基本风险指标
-        portfolio_returns = []
-        for symbol, data in portfolio_data.items():
-            if len(data) > 1:
-                returns = data["Close"].pct_change().dropna()
-                portfolio_returns.append(returns)
+#         Returns:
+#             风险分析结果
+#         """
+#         # 计算投资组合的基本风险指标
+#         portfolio_returns = []
+#         for symbol, data in portfolio_data.items():
+#             if len(data) > 1:
+#                 returns = data["Close"].pct_change().dropna()
+#                 portfolio_returns.append(returns)
 
-        if portfolio_returns:
-            portfolio_returns = pd.concat(portfolio_returns, axis=1)
-            portfolio_vol = portfolio_returns.std().mean()
-            portfolio_correlation = portfolio_returns.corr().mean().mean()
-        else:
-            portfolio_vol = 0
-            portfolio_correlation = 0
+#         if portfolio_returns:
+#             portfolio_returns = pd.concat(portfolio_returns, axis=1)
+#             portfolio_vol = portfolio_returns.std().mean()
+#             portfolio_correlation = portfolio_returns.corr().mean().mean()
+#         else:
+#             portfolio_vol = 0
+#             portfolio_correlation = 0
 
-        prompt = f"""
-作为风险管理专家，请分析当前投资组合的风险状况：
+#         prompt = f"""
+# 作为风险管理专家，请分析当前投资组合的风险状况：
 
-投资组合统计：
-- 股票数量: {len(portfolio_data)}
-- 平均波动率: {portfolio_vol:.4f}
-- 平均相关性: {portfolio_correlation:.4f}
+# 投资组合统计：
+# - 股票数量: {len(portfolio_data)}
+# - 平均波动率: {portfolio_vol:.4f}
+# - 平均相关性: {portfolio_correlation:.4f}
 
-请评估：
-1. 系统性风险水平
-2. 非系统性风险
-3. 流动性风险
-4. 集中度风险
-5. 风险管理建议
+# 请评估：
+# 1. 系统性风险水平
+# 2. 非系统性风险
+# 3. 流动性风险
+# 4. 集中度风险
+# 5. 风险管理建议
 
-回复格式：
-{
-    "systematic_risk": "低/中/高",
-    "idiosyncratic_risk": "低/中/高", 
-    "liquidity_risk": "低/中/高",
-    "concentration_risk": "低/中/高",
-    "overall_risk_score": 0.6,
-    "risk_recommendations": ["建议1", "建议2"],
-    "stress_test_scenarios": ["场景1", "场景2"]
-}
-"""
-        messages = [
-            {
-                "role": "system",
-                "content": "你是一位专业的投资风险管理专家，擅长投资组合风险评估。",
-            },
-            {"role": "user", "content": prompt},
-        ]
+# 回复格式：
+# {
+#     "systematic_risk": "低/中/高",
+#     "idiosyncratic_risk": "低/中/高", 
+#     "liquidity_risk": "低/中/高",
+#     "concentration_risk": "低/中/高",
+#     "overall_risk_score": 0.6,
+#     "risk_recommendations": ["建议1", "建议2"],
+#     "stress_test_scenarios": ["场景1", "场景2"]
+# }
+# """
+#         messages = [
+#             {
+#                 "role": "system",
+#                 "content": "你是一位专业的投资风险管理专家，擅长投资组合风险评估。",
+#             },
+#             {"role": "user", "content": prompt},
+#         ]
 
-        response = self._make_request(messages, temperature=0.3)
-        try:
-            result = json.loads(self._clean_json_response(response))
-            return result
-        except json.JSONDecodeError:
-            self.logger.warning(f"无法解析LLM响应为JSON: {response}")
-            return {
-                "systematic_risk": "中",
-                "idiosyncratic_risk": "中",
-                "liquidity_risk": "中",
-                "concentration_risk": "中",
-                "overall_risk_score": 0.5,
-                "risk_recommendations": [response],
-                "stress_test_scenarios": [],
-            }
+#         response = self._make_request(messages, temperature=0.3)
+#         try:
+#             result = json.loads(self._clean_json_response(response))
+#             return result
+#         except json.JSONDecodeError:
+#             self.logger.warning(f"无法解析LLM响应为JSON: {response}")
+#             return {
+#                 "systematic_risk": "中",
+#                 "idiosyncratic_risk": "中",
+#                 "liquidity_risk": "中",
+#                 "concentration_risk": "中",
+#                 "overall_risk_score": 0.5,
+#                 "risk_recommendations": [response],
+#                 "stress_test_scenarios": [],
+#             }
 
     def _get_company_context(self, stock_symbol: str) -> str:
         """
@@ -824,7 +834,6 @@ class LLMAnalyzer:
         Returns:
             公司背景信息字符串
         """
-        # 基于股票代码推断公司信息的简单字典
         company_info = {
             "AAPL": {
                 "name": "Apple Inc.",
@@ -900,6 +909,174 @@ class LLMAnalyzer:
                 "description": "全球最大的消费品公司之一",
                 "market_cap": "大盘股",
                 "key_factors": ["品牌组合", "全球分销", "创新研发", "稳定分红"],
+            },
+            "AABA": {
+                "name": "Altaba Inc.",
+                "industry": "互联网投资",
+                "description": "前雅虎公司资产管理实体",
+                "market_cap": "中大盘股",
+                "key_factors": ["资产价值", "投资组合", "清算进程"],
+            },
+            "AXP": {
+                "name": "American Express Company",
+                "industry": "金融服务",
+                "description": "全球知名信用卡和旅行服务提供商",
+                "market_cap": "大盘股",
+                "key_factors": ["品牌声誉", "支付网络", "客户忠诚度"],
+            },
+            "BA": {
+                "name": "The Boeing Company",
+                "industry": "航空航天",
+                "description": "全球领先的飞机和防务产品制造商",
+                "market_cap": "大盘股",
+                "key_factors": ["商用飞机", "国防合同", "技术创新"],
+            },
+            "CAT": {
+                "name": "Caterpillar Inc.",
+                "industry": "工程机械",
+                "description": "全球最大的重型机械和发动机制造商之一",
+                "market_cap": "大盘股",
+                "key_factors": ["全球基建", "矿业需求", "品牌影响力"],
+            },
+            "CSCO": {
+                "name": "Cisco Systems, Inc.",
+                "industry": "网络设备",
+                "description": "领先的企业级网络和通信解决方案供应商",
+                "market_cap": "大盘股",
+                "key_factors": ["路由器交换机", "企业客户", "云和安全业务"],
+            },
+            "CVX": {
+                "name": "Chevron Corporation",
+                "industry": "能源",
+                "description": "全球综合性的石油和天然气公司",
+                "market_cap": "大盘股",
+                "key_factors": ["油气储量", "价格波动", "全球运营"],
+            },
+            "DIS": {
+                "name": "The Walt Disney Company",
+                "industry": "传媒娱乐",
+                "description": "涵盖影视制作、主题公园和流媒体业务",
+                "market_cap": "大盘股",
+                "key_factors": ["内容版权", "品牌资产", "全球旅游业"],
+            },
+            "GE": {
+                "name": "General Electric Company",
+                "industry": "工业制造",
+                "description": "多元化工业集团，业务涉足电力、航空等领域",
+                "market_cap": "大盘股",
+                "key_factors": ["产业多元化", "技术实力", "业务重组"],
+            },
+            "GS": {
+                "name": "The Goldman Sachs Group, Inc.",
+                "industry": "金融服务",
+                "description": "全球领先的投资银行和资产管理公司",
+                "market_cap": "大盘股",
+                "key_factors": ["投行业务", "交易收入", "资产管理"],
+            },
+            "HD": {
+                "name": "The Home Depot, Inc.",
+                "industry": "零售",
+                "description": "全球最大的家居装修零售连锁企业",
+                "market_cap": "大盘股",
+                "key_factors": ["住宅市场", "供应链", "品牌忠诚"],
+            },
+            "IBM": {
+                "name": "International Business Machines Corporation",
+                "industry": "信息技术",
+                "description": "历史悠久的IT和咨询服务提供商",
+                "market_cap": "大盘股",
+                "key_factors": ["企业服务", "混合云", "人工智能"],
+            },
+            "INTC": {
+                "name": "Intel Corporation",
+                "industry": "半导体",
+                "description": "全球知名的CPU和芯片制造商",
+                "market_cap": "大盘股",
+                "key_factors": ["制程工艺", "PC市场", "数据中心"],
+            },
+            "KO": {
+                "name": "The Coca-Cola Company",
+                "industry": "饮料",
+                "description": "全球最大的碳酸饮料和饮品公司",
+                "market_cap": "大盘股",
+                "key_factors": ["品牌影响", "产品多元", "全球分销"],
+            },
+            "MCD": {
+                "name": "McDonald's Corporation",
+                "industry": "餐饮",
+                "description": "全球最大的快餐连锁企业",
+                "market_cap": "大盘股",
+                "key_factors": ["门店规模", "品牌知名度", "供应链管理"],
+            },
+            "MMM": {
+                "name": "3M Company",
+                "industry": "工业用品",
+                "description": "多元化科技和工业产品制造商",
+                "market_cap": "大盘股",
+                "key_factors": ["创新能力", "工业材料", "全球市场"],
+            },
+            "MRK": {
+                "name": "Merck & Co., Inc.",
+                "industry": "制药",
+                "description": "全球领先的医药和疫苗研发生产企业",
+                "market_cap": "大盘股",
+                "key_factors": ["新药管线", "专利保护", "全球销售"],
+            },
+            "NKE": {
+                "name": "Nike, Inc.",
+                "industry": "运动服饰",
+                "description": "全球知名的运动鞋服品牌",
+                "market_cap": "大盘股",
+                "key_factors": ["品牌营销", "创新设计", "全球供应链"],
+            },
+            "PFE": {
+                "name": "Pfizer Inc.",
+                "industry": "制药",
+                "description": "大型跨国制药企业，产品涵盖多种治疗领域",
+                "market_cap": "大盘股",
+                "key_factors": ["药品研发", "疫苗业务", "全球市场"],
+            },
+            "TRV": {
+                "name": "The Travelers Companies, Inc.",
+                "industry": "保险",
+                "description": "美国主要的商业和个人财产保险公司",
+                "market_cap": "大盘股",
+                "key_factors": ["保费收入", "风险管理", "投资收益"],
+            },
+            "UNH": {
+                "name": "UnitedHealth Group Incorporated",
+                "industry": "医疗保险",
+                "description": "美国最大的医疗保险和健康服务公司",
+                "market_cap": "大盘股",
+                "key_factors": ["医疗管理", "保险会员", "多元化服务"],
+            },
+            "UTX": {
+                "name": "United Technologies Corporation",
+                "industry": "工业制造",
+                "description": "提供航空航天和建筑技术的多元化集团",
+                "market_cap": "大盘股",
+                "key_factors": ["航空发动机", "电梯业务", "全球客户"],
+            },
+            "VZ": {
+                "name": "Verizon Communications Inc.",
+                "industry": "电信",
+                "description": "美国主要的通信和网络服务提供商",
+                "market_cap": "大盘股",
+                "key_factors": ["无线网络", "宽带服务", "规模优势"],
+            },
+            "WMT": {
+                "name": "Walmart Inc.",
+                "industry": "零售",
+                "description": "全球最大的连锁零售商",
+                "market_cap": "大盘股",
+                "key_factors": ["价格优势", "供应链", "全球采购"],
+            },
+            "XOM": {
+                "name": "Exxon Mobil Corporation",
+                "industry": "能源",
+                "description": "全球领先的石油和天然气开采与炼化公司",
+                "market_cap": "大盘股",
+                "key_factors": ["油气储量", "炼化能力", "全球运营"],
             },
         }
 

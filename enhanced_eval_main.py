@@ -22,7 +22,6 @@ class EnhancedStrategyEvaluator:
     def __init__(self, initial_cash=1000000, max_shares_per_trade=10000, enable_parallel=True):
         """
         初始化增强策略评估器
-        
         Args:
             initial_cash: 初始资金
             max_shares_per_trade: 单次交易最大股数
@@ -99,12 +98,10 @@ class EnhancedStrategyEvaluator:
         portfolio_values = []
         trade_log = []
         llm_analysis_log = []
-        
-        # 预先构建关系网络
+        # 构建关系网络
         print("构建股票关系网络...")
         strategy.build_stock_relationship_network(all_data)
         for i, date in enumerate(tqdm(trading_dates, desc="增强策略回测进度")):
-            # 准备当前可用数据
             current_data = self.prepare_test_data(all_data, trading_dates[0], date)
 
             # 计算当前投资组合价值供LLM参考
@@ -115,7 +112,7 @@ class EnhancedStrategyEvaluator:
 
             portfolio_state = {"cash": cash, "positions": dict(positions)}
               
-            # 每1个交易日进行一次LLM分析（控制API调用频率）
+            # 每1个交易日进行一次LLM分析，这里最后换成了每一次执行一次（因为解决API并发限制）
             if i % 1 == 0:
                 try:
                     print(f"分析 {date.strftime('%Y-%m-%d')} 的市场情感...")
@@ -139,7 +136,6 @@ class EnhancedStrategyEvaluator:
                             total_portfolio_value=portfolio_value_before,
                         )
                     
-                    # 记录LLM分析
                     analysis_summary = strategy.get_analysis_summary()
                     llm_analysis_log.append({
                         'date': date,
@@ -249,7 +245,7 @@ class EnhancedStrategyEvaluator:
             portfolio_values.append(daily_detail)
             self.daily_portfolio_details.append(daily_detail)
             
-            # 每日投资组合报告（每10个交易日输出详细信息）
+            # 每日投资组合报告
             if i % 1 == 0 or i == len(trading_dates) - 1:
                 self._print_daily_portfolio_report(date, daily_detail, day_trades)
         
@@ -257,7 +253,7 @@ class EnhancedStrategyEvaluator:
         final_value = portfolio_values[-1]['portfolio_value'] if portfolio_values else self.initial_cash
         total_return = (final_value - self.initial_cash) / self.initial_cash * 100
         
-        # 计算更多性能指标
+
         values = [p['portfolio_value'] for p in portfolio_values]
         returns = pd.Series(values).pct_change().dropna()
         
@@ -310,7 +306,6 @@ class EnhancedStrategyEvaluator:
         if not trade_log:
             return 0
         
-        # 简单计算：假设买入后卖出为一轮交易
         wins = 0
         total_rounds = 0
         
@@ -336,7 +331,7 @@ class EnhancedStrategyEvaluator:
         print("="*80)
         
         # 基本性能指标
-        print(f"\n📊 基本性能指标:")
+        print(f"\n 基本性能指标:")
         print(f"   初始资金: ${results['initial_cash']:,.2f}")
         print(f"   最终价值: ${results['final_value']:,.2f}")
         print(f"   总收益率: {results['total_return']:.2f}%")
@@ -346,7 +341,7 @@ class EnhancedStrategyEvaluator:
         print(f"   最大回撤: {results['max_drawdown']:.2f}%")
         
         # 交易统计
-        print(f"\n📈 交易统计:")
+        print(f"\n 交易统计:")
         print(f"   总交易次数: {results['total_trades']}")
         print(f"   买入交易: {results['buy_trades']}")
         print(f"   卖出交易: {results['sell_trades']}")
@@ -354,21 +349,21 @@ class EnhancedStrategyEvaluator:
         
         # LLM分析统计
         llm_info = results['llm_analysis']
-        print(f"\n🤖 LLM分析统计:")
+        print(f"\n LLM分析统计:")
         print(f"   情感分析次数: {llm_info['sentiment_analysis_count']}")
         print(f"   交易信号生成次数: {llm_info['trading_signals_count']}")
         print(f"   股票关系网络: {llm_info['network_nodes']}个节点, {llm_info['network_edges']}条边")
         
         # 最近情感分析
         if llm_info['recent_sentiments']:
-            print(f"\n💭 最近情感分析:")
+            print(f"\n 最近情感分析:")
             for stock, sentiment in llm_info['recent_sentiments'].items():
                 print(f"   {stock}: 情感评分={sentiment['sentiment_score']:.3f}, 风险={sentiment['risk_level']}")
         
         # 投资组合演变
         portfolio_history = results['portfolio_history']
         if portfolio_history:
-            print(f"\n📊 投资组合演变:")
+            print(f"\n 投资组合演变:")
             print(f"   最大持仓股票数: {max(p['position_count'] for p in portfolio_history)}")
             print(f"   平均持仓股票数: {np.mean([p['position_count'] for p in portfolio_history]):.1f}")
             print(f"   最终现金余额: ${portfolio_history[-1]['cash']:,.2f}")
@@ -376,7 +371,7 @@ class EnhancedStrategyEvaluator:
     def plot_enhanced_analysis(self, results, save_path="enhanced_strategy_analysis.png"):
         """绘制增强策略分析图表"""
         from matplotlib import rcParams
-        rcParams['axes.unicode_minus'] = False  # 避免负号显示为方块
+        rcParams['axes.unicode_minus'] = False  
         plt.style.use('seaborn-v0_8')
         fig, axes = plt.subplots(2, 3, figsize=(18, 12))
         fig.suptitle('LLM-Enhanced Stock Trading Strategy Analysis', fontsize=16, fontweight='bold')
@@ -385,7 +380,7 @@ class EnhancedStrategyEvaluator:
         dates = [p['date'] for p in portfolio_history]
         values = [p['portfolio_value'] for p in portfolio_history]
         
-        # 1. 投资组合价值变化
+        #  投资组合价值变化
         ax1 = axes[0, 0]
         ax1.plot(dates, values, linewidth=2, color='blue')
         ax1.axhline(y=self.initial_cash, color='red', linestyle='--', alpha=0.7, label='Initial Capital')
@@ -395,7 +390,7 @@ class EnhancedStrategyEvaluator:
         ax1.legend()
         ax1.grid(True, alpha=0.3)
         
-        # 2. 收益率分布
+        #  收益率分布
         ax2 = axes[0, 1]
         returns = pd.Series(values).pct_change().dropna() * 100
         ax2.hist(returns, bins=30, alpha=0.7, color='green')
@@ -405,7 +400,7 @@ class EnhancedStrategyEvaluator:
         ax2.set_ylabel('Frequency')
         ax2.legend()
         
-        # 3. 回撤分析
+        #  回撤分析
         ax3 = axes[0, 2]
         peak = np.maximum.accumulate(values)
         drawdown = (np.array(values) - peak) / peak * 100
@@ -416,7 +411,7 @@ class EnhancedStrategyEvaluator:
         ax3.set_ylabel('Drawdown (%)')
         ax3.grid(True, alpha=0.3)
         
-        # 4. 交易活动
+        #  交易活动
         ax4 = axes[1, 0]
         trade_log = results['trade_log']
         buy_dates = [t['date'] for t in trade_log if t['action'] == 'buy']
@@ -431,7 +426,7 @@ class EnhancedStrategyEvaluator:
         ax4.set_xlabel('Month')
         ax4.set_ylabel('Number of Trades')
         
-        # 5. 持仓变化
+        #  持仓变化
         ax5 = axes[1, 1]
         position_counts = [p['position_count'] for p in portfolio_history]
         ax5.plot(dates, position_counts, marker='o', markersize=3, color='orange')
@@ -440,7 +435,7 @@ class EnhancedStrategyEvaluator:
         ax5.set_ylabel('Stock Count')
         ax5.grid(True, alpha=0.3)
         
-        # 6. LLM情感分析
+        #  LLM情感分析
         ax6 = axes[1, 2]
         llm_info = results['llm_analysis']
         recent_sentiments = llm_info.get('recent_sentiments', {})
@@ -457,7 +452,6 @@ class EnhancedStrategyEvaluator:
             ax6.set_ylim(0, 1)
             ax6.legend()
             
-            # 添加数值标签
             for bar, score in zip(bars, sentiment_scores):
                 height = bar.get_height()
                 ax6.text(bar.get_x() + bar.get_width()/2., height + 0.01,
@@ -483,24 +477,24 @@ class EnhancedStrategyEvaluator:
             daily_detail: 当日详细数据
             day_trades: 当日交易记录
         """
-        print(f"\n📅 {date.strftime('%Y-%m-%d')} 投资组合状态:")
-        print(f"   💰 总价值: ${daily_detail['portfolio_value']:,.2f}")
-        print(f"   💵 现金: ${daily_detail['cash']:,.2f} ({daily_detail['cash_ratio']:.1%})")
-        print(f"   📊 持仓数: {daily_detail['position_count']} 只股票")
-        print(f"   📈 日收益: {daily_detail['daily_return']:+.2f}%")
-        print(f"   📈 累计收益: {daily_detail['cumulative_return']:+.2f}%")
+        print(f"\n {date.strftime('%Y-%m-%d')} 投资组合状态:")
+        print(f"    总价值: ${daily_detail['portfolio_value']:,.2f}")
+        print(f"    现金: ${daily_detail['cash']:,.2f} ({daily_detail['cash_ratio']:.1%})")
+        print(f"    持仓数: {daily_detail['position_count']} 只股票")
+        print(f"    日收益: {daily_detail['daily_return']:+.2f}%")
+        print(f"    累计收益: {daily_detail['cumulative_return']:+.2f}%")
         
         # 显示前5大持仓
         if daily_detail['position_values']:
             top_positions = sorted(daily_detail['position_values'].items(), 
                                  key=lambda x: x[1]['value'], reverse=True)[:5]
-            print(f"   🏆 前5大持仓:")
+            print(f"    前5大持仓:")
             for symbol, pos_data in top_positions:
                 print(f"     {symbol}: {pos_data['shares']:,}股 ${pos_data['value']:,.0f} ({pos_data['weight']:.1%})")
         
         # 显示当日交易
         if day_trades:
-            print(f"   💼 当日交易 ({len(day_trades)}笔):")
+            print(f"    当日交易 ({len(day_trades)}笔):")
             for trade in day_trades:
                 action_emoji = "🛒" if trade['action'] == 'buy' else "🛍️"
                 amount = trade.get('cost', trade.get('revenue', 0))
@@ -514,20 +508,20 @@ class EnhancedStrategyEvaluator:
             results: 回测结果
         """
         print("\n" + "="*100)
-        print("📊 详细投资组合分析报告")
+        print(" 详细投资组合分析报告")
         print("="*100)
         
         # 基本统计
         portfolio_history = results['portfolio_history']
         if not portfolio_history:
-            print("⚠️  无投资组合历史数据")
+            print("  无投资组合历史数据")
             return
         
         # 收益率分析
         values = [p['portfolio_value'] for p in portfolio_history]
         daily_returns = [p['daily_return'] for p in portfolio_history if 'daily_return' in p]
         
-        print(f"\n💹 收益率分析:")
+        print(f"\n 收益率分析:")
         print(f"   最高投资组合价值: ${max(values):,.2f}")
         print(f"   最低投资组合价值: ${min(values):,.2f}")
         print(f"   平均日收益率: {np.mean(daily_returns):.3f}%" if daily_returns else "N/A")
@@ -536,7 +530,7 @@ class EnhancedStrategyEvaluator:
         print(f"   最大单日亏损: {min(daily_returns):.2f}%" if daily_returns else "N/A")
         
         # 持仓分析
-        print(f"\n🏪 持仓分析:")
+        print(f"\n 持仓分析:")
         position_counts = [p['position_count'] for p in portfolio_history]
         cash_ratios = [p['cash_ratio'] for p in portfolio_history if 'cash_ratio' in p]
         
@@ -552,13 +546,13 @@ class EnhancedStrategyEvaluator:
                 trade_dates.add(detail['date'])
                 total_trades += len(detail['day_trades'])
         
-        print(f"\n📈 交易活动分析:")
+        print(f"\n 交易活动分析:")
         print(f"   活跃交易日: {len(trade_dates)} 天")
         print(f"   总交易笔数: {total_trades}")
         print(f"   日均交易笔数: {total_trades / len(portfolio_history):.1f}")
         
         # 风险指标
-        print(f"\n⚠️ 风险指标:")
+        print(f"\n 风险指标:")
         if len(values) > 1:
             # 计算最大回撤的具体日期
             peak = values[0]
@@ -584,7 +578,7 @@ class EnhancedStrategyEvaluator:
         
         # 最终状态
         final_state = portfolio_history[-1]
-        print(f"\n🏁 最终投资组合状态:")
+        print(f"\n 最终投资组合状态:")
         print(f"   最终价值: ${final_state['portfolio_value']:,.2f}")
         print(f"   现金余额: ${final_state['cash']:,.2f}")
         print(f"   持仓股票: {final_state['position_count']} 只")
@@ -597,11 +591,8 @@ class EnhancedStrategyEvaluator:
                 print(f"     {symbol}: {pos_data['shares']:,}股 @ ${pos_data['price']:.2f} = ${pos_data['value']:,.0f} ({pos_data['weight']:.1%})")
 
 def main():
-    """主函数"""
-    print("🚀 LLM增强股票交易策略评估系统")
+    print(" LLM增强股票交易策略评估系统")
     print("="*50)
-    # 配置参数 - 使用所有可用的股票
-    # 从数据目录获取所有股票代码
     data_files = glob.glob("time-series-data/*.csv")
     STOCK_POOL = [os.path.basename(f).split("_")[0] for f in data_files]
     print(f"检测到 {len(STOCK_POOL)} 只股票: {STOCK_POOL}")
@@ -610,20 +601,17 @@ def main():
     
     # 创建评估器
     evaluator = EnhancedStrategyEvaluator(initial_cash=1000000, max_shares_per_trade=10000)
-    
-    # 加载数据
     print("加载股票数据...")
     all_data = evaluator.load_stock_data("time-series-data")
     print(f"成功加载 {len(all_data)} 只股票的数据")
     # 生成交易日期
-    start_date = datetime(2011, 1, 1)  # 根据数据集的实际时间范围调整
+    start_date = datetime(2011, 1, 1)  
     end_date = datetime(2018, 1, 1)
     trading_dates = evaluator.generate_trading_dates(start_date, 60, min_gap=10, max_gap=80)
     trading_dates = [d for d in trading_dates if d < end_date]
     
     print(f"生成 {len(trading_dates)} 个交易日期")
-    
-    # 创建增强策略
+
     print("初始化LLM增强策略...")
     try:
         enhanced_strategy = EnhancedTradingStrategy(STOCK_POOL, LLM_API_KEY)
@@ -645,10 +633,10 @@ def main():
         # 保存策略分析结果
         enhanced_strategy.save_analysis_results("llm_analysis_details.json")
         
-        print("\n✅ LLM增强策略评估完成！")
+        print("\n LLM增强策略评估完成！")
         
     except Exception as e:
-        print(f"❌ 增强策略评估失败: {e}")
+        print(f" 增强策略评估失败: {e}")
         import traceback
         traceback.print_exc()
 
