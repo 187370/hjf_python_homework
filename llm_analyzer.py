@@ -2,7 +2,7 @@ import openai
 import requests
 import json
 import time
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
@@ -189,6 +189,7 @@ class LLMAnalyzer:
                         task["recent_data"],
                         task.get("news_headlines"),
                         task.get("current_date"),
+                        task.get("pnl_history"),
                         client_index,
                     )
                 elif task["task_type"] == "trading_signal":
@@ -240,6 +241,7 @@ class LLMAnalyzer:
         recent_data: pd.DataFrame,
         news_headlines: List[str] = None,
         current_date: Optional[str] = None,
+        pnl_history: Optional[List[Tuple[str, float]]] = None,
         client_index: int = 0,
     ) -> Dict[str, Any]:
         """
@@ -315,6 +317,9 @@ class LLMAnalyzer:
 === 30天价格历史轨迹 ===
 {chr(10).join(price_history) if price_history else "数据不足"}
 """
+        if pnl_history:
+            pnl_text = ", ".join(f"{d}: {p:+.2f}" for d, p in pnl_history)
+            prompt += f"\n=== 历史盈亏(单股) ===\n{pnl_text}"
 
         if search_summaries:
             prompt += "\n=== 相关新闻摘要 ===\n" + "\n".join(
@@ -463,6 +468,7 @@ class LLMAnalyzer:
         recent_data: pd.DataFrame,
         news_headlines: List[str] = None,
         current_date: Optional[str] = None,
+        pnl_history: Optional[List[Tuple[str, float]]] = None,
     ) -> Dict[str, Any]:
         """
         分析市场情感和股票前景（串行版本，已废弃）
@@ -521,6 +527,9 @@ class LLMAnalyzer:
 - 成交量趋势比率: {volume_trend:.2f}
 
 """
+        if pnl_history:
+            pnl_text = ", ".join(f"{d}: {p:+.2f}" for d, p in pnl_history)
+            prompt += f"历史盈亏(单股): {pnl_text}\n"
 
         if search_summaries:
             prompt += "相关新闻摘要:\n" + "\n".join(f"- {s}" for s in search_summaries) + "\n"
