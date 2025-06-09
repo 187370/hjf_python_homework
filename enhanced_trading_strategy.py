@@ -510,7 +510,7 @@ class EnhancedTradingStrategy:
                 tech_action = tech_decision["action"]["type"]
                 tech_shares = tech_decision["action"]["shares"]
                 tech_reason = tech_decision["reason"]
-                tech_conf = tech_decision.get("confidence", 0.5)
+                tech_conf = tech_decision.get("confidence", 0.5)  
 
                 llm_dir = 1 if llm_action == "买入" else -1
                 tech_dir = 1 if tech_action == "buy" else -1
@@ -520,15 +520,15 @@ class EnhancedTradingStrategy:
                     # 信号一致，按置信度加权调整交易量
                     weighted_shares = (
                         base_shares * llm_confidence + tech_shares * tech_conf
-                    ) / (llm_confidence + tech_conf)
+                    ) / (llm_confidence + tech_conf)*(1.2 if decision["action"]["type"] == "buy" else 1)
                     decision["action"]["shares"] = int(weighted_shares)
                     decision["reason"] += f" [技术分析确认: {tech_reason}]"
-                    decision["confidence"] = min(0.95, 0.6 * llm_confidence + 0.4 * tech_conf)
+                    decision["confidence"] = min(0.95, 0.8 * llm_confidence + 0.2 * tech_conf)
                 else:
                     # 信号冲突，按置信度大小决定方向和仓位
                     decision["action"]["type"] = "buy" if combined_dir >= 0 else "sell"
                     weighted_shares = abs(
-                        base_shares * llm_confidence - tech_shares * tech_conf
+                        base_shares * llm_confidence - tech_shares * tech_conf*0.5
                     )
                     decision["action"]["shares"] = int(weighted_shares)
                     decision["reason"] += f" [信号冲突: {tech_reason}]"
@@ -545,7 +545,7 @@ class EnhancedTradingStrategy:
                     decision["action"]["shares"] = int(decision["action"]["shares"] * 0.6)
                     decision["reason"] += f" [高风险调整]"
                 elif risk_level == "低" and decision["action"]["type"] == "buy":
-                    decision["action"]["shares"] = int(decision["action"]["shares"] * 1.1)
+                    decision["action"]["shares"] = int(decision["action"]["shares"] * 1.5)
                     decision["reason"] += f" [低风险增持]"
                 
                 # 通过情感分数进一步微调
