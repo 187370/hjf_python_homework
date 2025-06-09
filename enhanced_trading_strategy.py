@@ -531,10 +531,10 @@ class EnhancedTradingStrategy:
                 
                 # 根据风险等级和情感评分调整交易量
                 if risk_level == "高" and decision["action"]["type"] == "buy":
-                    decision["action"]["shares"] = int(decision["action"]["shares"] * 0.5)
+                    decision["action"]["shares"] = int(decision["action"]["shares"] * 0.6)
                     decision["reason"] += f" [高风险调整]"
                 elif risk_level == "低" and decision["action"]["type"] == "buy":
-                    decision["action"]["shares"] = int(decision["action"]["shares"] * 1.3)
+                    decision["action"]["shares"] = int(decision["action"]["shares"] * 1.1)
                     decision["reason"] += f" [低风险增持]"
                 
                 # 通过情感分数进一步微调

@@ -163,10 +163,8 @@ class LLMAnalyzer:
     def batch_analyze_stocks_parallel(self, analysis_tasks: List[Dict]) -> List[Dict]:
         """
         并行处理多个股票的分析任务
-
         Args:
             analysis_tasks: 分析任务列表，每个任务包含股票代码和相关数据
-
         Returns:
             分析结果列表
         """
@@ -300,7 +298,6 @@ class LLMAnalyzer:
                         search_summaries.append(summary.strip())
             except Exception as e:
                 self.logger.warning(f"搜索信息获取失败 {stock_symbol}: {e}")
-
         # 构建增强分析提示
         prompt = f"""
 今天是 {current_date or '未知日期'}，请结合该日期前的市场信息分析股票 {stock_symbol} 的情绪和前景。

@@ -621,7 +621,7 @@ def main():
     # 生成交易日期
     start_date = datetime(2011, 1, 1)  # 根据数据集的实际时间范围调整
     end_date = datetime(2018, 1, 1)
-    trading_dates = evaluator.generate_trading_dates(start_date, 60, min_gap=30, max_gap=100)
+    trading_dates = evaluator.generate_trading_dates(start_date, 60, min_gap=10, max_gap=80)
     trading_dates = [d for d in trading_dates if d < end_date]
     
     print(f"生成 {len(trading_dates)} 个交易日期")
