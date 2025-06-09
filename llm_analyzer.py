@@ -580,7 +580,7 @@ class LLMAnalyzer:
             correlation_matrix: 相关性矩阵
 
         Returns:
-            关系分析结果
+            关系分析结果，包含行业聚类和有向依赖关系
         """
         # 找出高相关性的股票对
         high_corr_pairs = []
@@ -615,13 +615,16 @@ class LLMAnalyzer:
 2. 投资组合多样化建议
 3. 潜在的系统性风险
 4. 建议的权重分配策略
+5. 哪些股票在行业内起领涨作用，哪些可能跟随，请给出有向依赖关
+   系描述
 
 请以JSON格式回复：
 {
-    "industry_analysis": "行业分析",
+    "industry_clusters": {"Technology": ["AAPL", "MSFT"]},
     "diversification_score": 0.8,
     "systematic_risks": ["风险1", "风险2"],
-    "weight_suggestions": {"AAPL": 0.1, "MSFT": 0.15, ...},
+    "weight_suggestions": {"AAPL": 0.1, "MSFT": 0.15},
+    "directed_relations": [{"from": "AAPL", "to": "MSFT", "reason": "AAPL领涨"}],
     "overall_strategy": "整体策略建议"
 }
 """
@@ -640,10 +643,12 @@ class LLMAnalyzer:
         except json.JSONDecodeError:
             self.logger.warning(f"无法解析LLM响应为JSON: {response}")
             return {
+                "industry_clusters": {},
                 "industry_analysis": response,
                 "diversification_score": 0.5,
                 "systematic_risks": [],
                 "weight_suggestions": {},
+                "directed_relations": [],
                 "overall_strategy": "需要进一步分析",
             }
 
