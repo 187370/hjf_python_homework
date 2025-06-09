@@ -58,7 +58,8 @@ class EnhancedTradingStrategy:
         if isinstance(llm_api_keys, str):
             llm_api_keys = [llm_api_keys]
         self.llm_analyzer = LLMAnalyzer(llm_api_keys, llm_base_url)
-        self.stock_network = nx.Graph()  # 股票关系网络
+        # 使用有向图以支持依赖关系建模
+        self.stock_network = nx.DiGraph()  # 股票关系网络
         self.sentiment_history = {}  # 情感分析历史
         self.llm_signals = {}  # LLM生成的交易信号
         self.risk_assessments = {}  # 风险评估结果
@@ -252,9 +253,14 @@ class EnhancedTradingStrategy:
         # 构建网络图
         self.stock_network.clear()
 
-        # 添加节点
+        # 添加节点并标注行业信息
+        industry_map = {}
+        for industry, stocks in relationship_analysis.get("industry_clusters", {}).items():
+            for s in stocks:
+                industry_map[s] = industry
+
         for stock in returns_data.keys():
-            self.stock_network.add_node(stock)
+            self.stock_network.add_node(stock, industry=industry_map.get(stock))
 
         # 添加边（基于相关性阈值）
         correlation_threshold = 0.3
@@ -264,8 +270,24 @@ class EnhancedTradingStrategy:
                     corr = correlation_matrix.loc[stock1, stock2]
                     if abs(corr) > correlation_threshold:
                         self.stock_network.add_edge(
-                            stock1, stock2, weight=abs(corr), correlation=corr
+                            stock1,
+                            stock2,
+                            weight=abs(corr),
+                            correlation=corr,
+                            relation="correlation",
                         )
+
+        # 添加有向依赖关系边
+        for rel in relationship_analysis.get("directed_relations", []):
+            src = rel.get("from") or rel.get("source")
+            dst = rel.get("to") or rel.get("target")
+            if src and dst:
+                self.stock_network.add_edge(
+                    src,
+                    dst,
+                    relation="dependency",
+                    reason=rel.get("reason"),
+                )
 
         self.logger.info(
             f"股票关系网络构建完成: {self.stock_network.number_of_nodes()}个节点, {self.stock_network.number_of_edges()}条边"
