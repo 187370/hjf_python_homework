@@ -301,6 +301,7 @@ class LLMAnalyzer:
    
         prompt = f"""
 今天是 {current_date or '未知日期'}，请结合该日期前的市场信息分析股票 {stock_symbol} 的情绪和前景。
+紧密联系{current_date}日期附近有关该公司的新闻（可以用你的世界知识），分析详细理由，并按指定格式回复
 
 === 公司背景 ===
 {company_info}
@@ -464,7 +465,7 @@ class LLMAnalyzer:
         current_date: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        分析市场情感和股票前景
+        分析市场情感和股票前景（串行版本，已废弃）
 
         Args:
             stock_symbol: 股票代码
