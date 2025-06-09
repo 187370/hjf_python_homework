@@ -605,7 +605,7 @@ class LLMAnalyzer:
 高相关性股票对：
 """
 
-        for pair in high_corr_pairs[:10]:  # 只显示前10个
+        for pair in high_corr_pairs:
             prompt += (
                 f"- {pair['stock1']} vs {pair['stock2']}: {pair['correlation']:.3f}\n"
             )
@@ -900,6 +900,174 @@ class LLMAnalyzer:
                 "description": "全球最大的消费品公司之一",
                 "market_cap": "大盘股",
                 "key_factors": ["品牌组合", "全球分销", "创新研发", "稳定分红"],
+            },
+            "AABA": {
+                "name": "Altaba Inc.",
+                "industry": "互联网投资",
+                "description": "前雅虎公司资产管理实体",
+                "market_cap": "中大盘股",
+                "key_factors": ["资产价值", "投资组合", "清算进程"],
+            },
+            "AXP": {
+                "name": "American Express Company",
+                "industry": "金融服务",
+                "description": "全球知名信用卡和旅行服务提供商",
+                "market_cap": "大盘股",
+                "key_factors": ["品牌声誉", "支付网络", "客户忠诚度"],
+            },
+            "BA": {
+                "name": "The Boeing Company",
+                "industry": "航空航天",
+                "description": "全球领先的飞机和防务产品制造商",
+                "market_cap": "大盘股",
+                "key_factors": ["商用飞机", "国防合同", "技术创新"],
+            },
+            "CAT": {
+                "name": "Caterpillar Inc.",
+                "industry": "工程机械",
+                "description": "全球最大的重型机械和发动机制造商之一",
+                "market_cap": "大盘股",
+                "key_factors": ["全球基建", "矿业需求", "品牌影响力"],
+            },
+            "CSCO": {
+                "name": "Cisco Systems, Inc.",
+                "industry": "网络设备",
+                "description": "领先的企业级网络和通信解决方案供应商",
+                "market_cap": "大盘股",
+                "key_factors": ["路由器交换机", "企业客户", "云和安全业务"],
+            },
+            "CVX": {
+                "name": "Chevron Corporation",
+                "industry": "能源",
+                "description": "全球综合性的石油和天然气公司",
+                "market_cap": "大盘股",
+                "key_factors": ["油气储量", "价格波动", "全球运营"],
+            },
+            "DIS": {
+                "name": "The Walt Disney Company",
+                "industry": "传媒娱乐",
+                "description": "涵盖影视制作、主题公园和流媒体业务",
+                "market_cap": "大盘股",
+                "key_factors": ["内容版权", "品牌资产", "全球旅游业"],
+            },
+            "GE": {
+                "name": "General Electric Company",
+                "industry": "工业制造",
+                "description": "多元化工业集团，业务涉足电力、航空等领域",
+                "market_cap": "大盘股",
+                "key_factors": ["产业多元化", "技术实力", "业务重组"],
+            },
+            "GS": {
+                "name": "The Goldman Sachs Group, Inc.",
+                "industry": "金融服务",
+                "description": "全球领先的投资银行和资产管理公司",
+                "market_cap": "大盘股",
+                "key_factors": ["投行业务", "交易收入", "资产管理"],
+            },
+            "HD": {
+                "name": "The Home Depot, Inc.",
+                "industry": "零售",
+                "description": "全球最大的家居装修零售连锁企业",
+                "market_cap": "大盘股",
+                "key_factors": ["住宅市场", "供应链", "品牌忠诚"],
+            },
+            "IBM": {
+                "name": "International Business Machines Corporation",
+                "industry": "信息技术",
+                "description": "历史悠久的IT和咨询服务提供商",
+                "market_cap": "大盘股",
+                "key_factors": ["企业服务", "混合云", "人工智能"],
+            },
+            "INTC": {
+                "name": "Intel Corporation",
+                "industry": "半导体",
+                "description": "全球知名的CPU和芯片制造商",
+                "market_cap": "大盘股",
+                "key_factors": ["制程工艺", "PC市场", "数据中心"],
+            },
+            "KO": {
+                "name": "The Coca-Cola Company",
+                "industry": "饮料",
+                "description": "全球最大的碳酸饮料和饮品公司",
+                "market_cap": "大盘股",
+                "key_factors": ["品牌影响", "产品多元", "全球分销"],
+            },
+            "MCD": {
+                "name": "McDonald's Corporation",
+                "industry": "餐饮",
+                "description": "全球最大的快餐连锁企业",
+                "market_cap": "大盘股",
+                "key_factors": ["门店规模", "品牌知名度", "供应链管理"],
+            },
+            "MMM": {
+                "name": "3M Company",
+                "industry": "工业用品",
+                "description": "多元化科技和工业产品制造商",
+                "market_cap": "大盘股",
+                "key_factors": ["创新能力", "工业材料", "全球市场"],
+            },
+            "MRK": {
+                "name": "Merck & Co., Inc.",
+                "industry": "制药",
+                "description": "全球领先的医药和疫苗研发生产企业",
+                "market_cap": "大盘股",
+                "key_factors": ["新药管线", "专利保护", "全球销售"],
+            },
+            "NKE": {
+                "name": "Nike, Inc.",
+                "industry": "运动服饰",
+                "description": "全球知名的运动鞋服品牌",
+                "market_cap": "大盘股",
+                "key_factors": ["品牌营销", "创新设计", "全球供应链"],
+            },
+            "PFE": {
+                "name": "Pfizer Inc.",
+                "industry": "制药",
+                "description": "大型跨国制药企业，产品涵盖多种治疗领域",
+                "market_cap": "大盘股",
+                "key_factors": ["药品研发", "疫苗业务", "全球市场"],
+            },
+            "TRV": {
+                "name": "The Travelers Companies, Inc.",
+                "industry": "保险",
+                "description": "美国主要的商业和个人财产保险公司",
+                "market_cap": "大盘股",
+                "key_factors": ["保费收入", "风险管理", "投资收益"],
+            },
+            "UNH": {
+                "name": "UnitedHealth Group Incorporated",
+                "industry": "医疗保险",
+                "description": "美国最大的医疗保险和健康服务公司",
+                "market_cap": "大盘股",
+                "key_factors": ["医疗管理", "保险会员", "多元化服务"],
+            },
+            "UTX": {
+                "name": "United Technologies Corporation",
+                "industry": "工业制造",
+                "description": "提供航空航天和建筑技术的多元化集团",
+                "market_cap": "大盘股",
+                "key_factors": ["航空发动机", "电梯业务", "全球客户"],
+            },
+            "VZ": {
+                "name": "Verizon Communications Inc.",
+                "industry": "电信",
+                "description": "美国主要的通信和网络服务提供商",
+                "market_cap": "大盘股",
+                "key_factors": ["无线网络", "宽带服务", "规模优势"],
+            },
+            "WMT": {
+                "name": "Walmart Inc.",
+                "industry": "零售",
+                "description": "全球最大的连锁零售商",
+                "market_cap": "大盘股",
+                "key_factors": ["价格优势", "供应链", "全球采购"],
+            },
+            "XOM": {
+                "name": "Exxon Mobil Corporation",
+                "industry": "能源",
+                "description": "全球领先的石油和天然气开采与炼化公司",
+                "market_cap": "大盘股",
+                "key_factors": ["油气储量", "炼化能力", "全球运营"],
             },
         }
 
