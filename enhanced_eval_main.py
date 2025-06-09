@@ -115,7 +115,7 @@ class EnhancedStrategyEvaluator:
 
             portfolio_state = {"cash": cash, "positions": dict(positions)}
               
-            # 每5个交易日进行一次LLM分析（控制API调用频率）
+            # 每1个交易日进行一次LLM分析（控制API调用频率）
             if i % 1 == 0:
                 try:
                     print(f"分析 {date.strftime('%Y-%m-%d')} 的市场情感...")

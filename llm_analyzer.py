@@ -362,12 +362,11 @@ class LLMAnalyzer:
             value = holding_info.get("value", 0.0)
             weight_pct = holding_info.get("weight_pct", 0.0)
             cash = holding_info.get("cash", 0.0)
-            holding_text = (
-                f"当前持仓 {shares} 股, 价值约 ${value:.2f}, 占组合 {weight_pct:.2%}; 当前现金 ${cash:.2f}\n"
-            )
+            holding_text = f"当前持仓 {shares} 股, 价值约 ${value:.2f}, 占组合 {weight_pct:.2%}; 当前现金 ${cash:.2f}\n"
 
-        price_text = f"当前股价: ${latest_price:.2f}\n" if latest_price is not None else ""
-
+        price_text = (
+            f"当前股价: ${latest_price:.2f}\n" if latest_price is not None else ""
+        )
         prompt = f"""
 作为量化交易分析师，请为股票 {stock_symbol} 生成交易信号：
 {holding_text}{price_text}
@@ -624,10 +623,10 @@ class LLMAnalyzer:
             value = holding_info.get("value", 0.0)
             weight_pct = holding_info.get("weight_pct", 0.0)
             cash = holding_info.get("cash", 0.0)
-            holding_text = (
-                f"当前持仓 {shares} 股, 价值约 ${value:.2f}, 占组合 {weight_pct:.2%}; 当前现金 ${cash:.2f}\n"
-            )
-
+            holding_text = f"当前持仓 {shares} 股, 价值约 ${value:.2f}, 占组合 {weight_pct:.2%}; 当前现金 ${cash:.2f}\n"
+        price_text = (
+            f"当前股价: ${latest_price:.2f}\n" if latest_price is not None else ""
+        )
         prompt = f"""
 作为量化交易专家，请为股票 {stock_symbol} 生成交易信号。
 {holding_text}{price_text}
