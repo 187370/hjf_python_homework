@@ -12,6 +12,7 @@ import ta
 from datetime import datetime, timedelta
 import warnings
 import networkx as nx
+import matplotlib.pyplot as plt
 from collections import defaultdict
 import json
 from llm_analyzer import LLMAnalyzer
@@ -292,6 +293,55 @@ class EnhancedTradingStrategy:
         self.logger.info(
             f"股票关系网络构建完成: {self.stock_network.number_of_nodes()}个节点, {self.stock_network.number_of_edges()}条边"
         )
+
+        # 新增：保存网络图为图片
+        try:
+            self.save_stock_network_figure()
+        except Exception as e:
+            self.logger.error(f"保存股票关系网络图失败: {e}")
+
+    def save_stock_network_figure(self, filepath: str = "stock_relationship_network.png"):
+        """保存股票关系网络图"""
+        if self.stock_network.number_of_nodes() == 0:
+            self.logger.warning("股票关系网络为空，无法绘图")
+            return
+
+        plt.figure(figsize=(10, 8))
+        pos = nx.spring_layout(self.stock_network, seed=42)
+
+        # 根据行业着色节点
+        industries = {
+            data.get("industry", "Unknown") for _, data in self.stock_network.nodes(data=True)
+        }
+        color_map = plt.cm.tab20(range(len(industries)))
+        industry_colors = {ind: color_map[i] for i, ind in enumerate(industries)}
+        node_colors = [industry_colors.get(self.stock_network.nodes[n].get("industry", "Unknown")) for n in self.stock_network.nodes]
+
+        nx.draw_networkx_nodes(self.stock_network, pos, node_color=node_colors, node_size=300, alpha=0.8)
+        nx.draw_networkx_labels(self.stock_network, pos, font_size=8)
+
+        correlation_edges = [
+            (u, v) for u, v, d in self.stock_network.edges(data=True) if d.get("relation") == "correlation"
+        ]
+        dependency_edges = [
+            (u, v) for u, v, d in self.stock_network.edges(data=True) if d.get("relation") == "dependency"
+        ]
+
+        nx.draw_networkx_edges(self.stock_network, pos, edgelist=correlation_edges, alpha=0.4)
+        nx.draw_networkx_edges(
+            self.stock_network,
+            pos,
+            edgelist=dependency_edges,
+            edge_color="red",
+            arrows=True,
+            width=2,
+        )
+
+        plt.axis("off")
+        plt.tight_layout()
+        plt.savefig(filepath, dpi=300, bbox_inches="tight")
+        plt.close()
+        self.logger.info(f"股票关系网络图已保存到: {filepath}")
 
     def analyze_market_sentiment_for_all_stocks(self, all_data, current_date):
         """
