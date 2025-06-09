@@ -189,6 +189,16 @@ class EnhancedTradingStrategy:
 
         return df
 
+    def _calculate_pnl_history(self, df):
+        """根据收盘价计算简单的日盈亏(单股)"""
+        pnl = []
+        if len(df) < 2:
+            return pnl
+        for i in range(1, len(df)):
+            change = df.iloc[i]["Close"] - df.iloc[i - 1]["Close"]
+            pnl.append((df.iloc[i]["Date"].strftime("%m-%d"), float(change)))
+        return pnl
+
     def _calculate_dynamic_shares(self, symbol, price, action, portfolio, total_value):
         """根据资金和仓位动态计算交易股数"""
         if portfolio is None:
@@ -364,13 +374,14 @@ class EnhancedTradingStrategy:
                 continue
 
             recent_data = current_data.tail(30)  # 最近30天的数据
-            print(recent_data)
+            pnl_history = self._calculate_pnl_history(recent_data)
             try:
                 # 使用LLM分析情感
                 sentiment_analysis = self.llm_analyzer.analyze_market_sentiment(
                     stock_symbol,
                     recent_data,
                     current_date=current_date,
+                    pnl_history=pnl_history,
                 )
 
                 # 存储情感分析结果
@@ -906,14 +917,16 @@ class EnhancedTradingStrategy:
 
 
             recent_data = current_data.tail(30)
+            pnl_history = self._calculate_pnl_history(recent_data)
 
             analysis_tasks.append(
                 {
                     "task_type": "sentiment",
                     "stock_symbol": stock_symbol,
                     "recent_data": recent_data,
-                    "news_headlines": None,  
+                    "news_headlines": None,
                     "current_date": current_date,
+                    "pnl_history": pnl_history,
                 }
             )
 
