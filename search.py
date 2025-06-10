@@ -68,10 +68,11 @@ def search_searxng(
 
 
 if __name__ == "__main__":
-    search_searxng(
-        "AAPL股票值得买吗？",
-        current_date="2012-2-28",
+    formatted_results=search_searxng(
+        "AAPL股票？",
+        current_date="2025-6-10",
         time_range=30,
         category="news",
         engines="google,bing"
     )
+    print(formatted_results)
