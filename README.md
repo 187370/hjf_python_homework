@@ -14,6 +14,12 @@
 ├── enhanced_eval_main.py           #  增强策略专用评估程序
 ├── requirements.txt                # 依赖包列表
 ├── README.md                       # 项目说明
+├── run_until_target.py             # 自动运行脚本
+├── result                          # 执行13次的历史结果
+├── stock_relationship_network_best.png  # 最好结果的网络图
+├── llm_analysis_details_best.json  # 最好结果的LLM分析轨迹
+├── enhanced_strategy_evaluation_best.json # 最好结果的决策过程
+├── enhanced_strategy_detailed_analysis_best.png # 最好结果的可视化结果
 └── time-series-data/               # 股票历史数据
     ├── AAPL_2006-01-01_to_2018-01-01.csv
     ├── MSFT_2006-01-01_to_2018-01-01.csv
@@ -28,10 +34,9 @@
 
 - **功能**: 调用DeepSeek API进行各种分析
 - **方法**:
-  - `analyze_market_sentiment()`: 市场情感分析
+  - ` _analyze_sentiment_single()`: 市场情感分析
   - `analyze_stock_relationships()`: 股票关系分析
-  - `generate_trading_signals()`: 交易信号生成
-  - `analyze_risk_factors()`: 风险因素分析
+  - `_generate_trading_signal_single()`: 交易信号生成
 
 #### EnhancedTradingStrategy (enhanced_trading_strategy.py)
 
@@ -42,14 +47,7 @@
   - 增强版决策函数
   - 多维度信号融合
 
-#### MarketDataCollector (market_data_collector.py)
 
-- **功能**: 市场数据收集和预处理
-- **数据源**:
-  - yfinance股票基本信息
-  - 模拟新闻标题数据
-  - 行业ETF表现数据
-  - 宏观经济指标
 
 ### 2. 数据流程
 
@@ -80,7 +78,7 @@ LLM_API_KEY = "your-deepseek-api-key-here"
 ### 3. 运行评估程序
 
 ```bash
-# 🆕 评估LLM增强策略（推荐）
+#  评估LLM增强策略（推荐）
 python enhanced_eval_main.py
 
 # 自动重复评估直到收益率达到目标
@@ -128,7 +126,7 @@ python run_until_target.py
 
 ### 1. 收益率提升
 
-- **目标**: 相比原始策略提升5-15%收益率
+- **目标**: 相比原始策略提升60%收益率
 - **机制**: LLM提供的额外信息优势
 
 ### 2. 风险控制

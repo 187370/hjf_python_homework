@@ -4,7 +4,10 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 from sklearn.cluster import KMeans
-
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader, TensorDataset
 import ta
 from datetime import datetime, timedelta
 import warnings
@@ -48,7 +51,7 @@ class EnhancedTradingStrategy:
         self.n_clusters = 5  # 聚类类别数
         self.window_size = 20  # 时间窗口大小
         self.prediction_days = 5  # 预测未来天数
-        # self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # LLM分析器和关系网络（支持多API密钥）
         if isinstance(llm_api_keys, str):
