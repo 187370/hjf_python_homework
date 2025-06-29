@@ -41,7 +41,7 @@ class LLMAnalyzer:
             self.api_keys = api_keys
         else:
             self.api_keys = [
-                "sk-XnbHbzBOmPYGHgL_xCMCYcABqSNTuqAhKtmOXJEONih7BqRZSw-JuRM1RbI"
+                ""
             ]  # 默认密钥
 
         self.base_url = base_url
